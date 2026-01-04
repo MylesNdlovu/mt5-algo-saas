@@ -1,0 +1,573 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  TRADER
+  IB
+  SUPER_ADMIN
+}
+
+enum SubscriptionTier {
+  FREE
+  TRIAL
+  BASIC
+  PREMIUM
+  VIP
+}
+
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum EAStatus {
+  STOPPED
+  RUNNING
+  PAUSED
+  ERROR
+}
+
+enum SafetyIndicator {
+  RED // Unsafe - EA should be stopped
+  ORANGE // Caution - proceed with care
+  GREEN // Safe - good conditions
+}
+
+enum AutomationTriggerType {
+  LEAD_OPTIN
+  MT5_REGISTRATION
+  WINNING_TRADES
+  LOSING_TRADES
+  SUBSCRIPTION_UPGRADE
+  SUBSCRIPTION_EXPIRED
+  HIGH_PROFIT_ACHIEVED
+  CONSECUTIVE_LOSSES
+  ACCOUNT_INACTIVE
+  TRIAL_ENDING
+}
+
+enum AutomationActionType {
+  EMAIL
+  SMS
+  WHATSAPP
+  PUSH_NOTIFICATION
+  IN_APP_MESSAGE
+}
+
+enum AutomationStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  DELIVERED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole @default(USER)
+  phone        String?
+
+  // IB Referral
+  ibCode      String? // IB coupon code used during signup
+  ibPartnerId String? // Reference to IB partner
+  ibPartner   IBPartner? @relation(fields: [ibPartnerId], references: [id])
+
+  // Subscription
+  subscriptionTier  SubscriptionTier @default(FREE)
+  subscriptionStart DateTime?
+  subscriptionEnd   DateTime?
+  monthlyFee        Float            @default(0)
+
+  // Trading Stats
+  totalTrades   Int   @default(0)
+  winningTrades Int   @default(0)
+  losingTrades  Int   @default(0)
+  totalProfit   Float @default(0)
+  totalVolume   Float @default(0)
+
+  // System
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  lastLoginAt  DateTime?
+  lastActiveAt DateTime?
+  isActive     Boolean       @default(true)
+  status       AccountStatus @default(PENDING)
+
+  // Relationships
+  mt5Accounts      MT5Account[]
+  eas              EA[]
+  trades           Trade[]
+  notifications    NotificationLog[]
+  insights         UserInsight?
+  automations      Automation[] // User-specific automations
+  leaderboardStats LeaderboardEntry[]
+  agents           Agent[] // C# MT5 automation agents
+
+  @@index([email])
+  @@index([role])
+  @@index([subscriptionTier])
+  @@index([status])
+  @@index([createdAt])
+  @@index([totalProfit])
+  @@index([winningTrades])
+  @@index([ibPartnerId])
+}
+
+model MT5Account {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // MT5 Details
+  accountNumber String  @unique
+  broker        String // Exness or PrimeXBT
+  serverName    String
+  login         String
+  password      String? // Encrypted
+
+  // VPS Details
+  vpsIp   String?
+  vpsPort Int?
+
+  // Account Status
+  status     AccountStatus @default(PENDING)
+  balance    Float         @default(0)
+  equity     Float         @default(0)
+  margin     Float         @default(0)
+  freeMargin Float         @default(0)
+
+  // Relationships
+  eas    EA[]
+  trades Trade[]
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  lastSyncAt DateTime?
+
+  @@index([userId])
+  @@index([accountNumber])
+  @@index([status])
+}
+
+model EA {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mt5AccountId String
+  mt5Account   MT5Account @relation(fields: [mt5AccountId], references: [id], onDelete: Cascade)
+
+  name        String
+  version     String?
+  magicNumber Int?
+
+  // Status
+  status          EAStatus        @default(STOPPED)
+  safetyIndicator SafetyIndicator @default(RED)
+
+  // Configuration
+  maxLotSize  Float @default(0.01)
+  riskPercent Float @default(1.0)
+  settings    Json?
+
+  // Runtime
+  lastStartAt DateTime?
+  lastStopAt  DateTime?
+  uptime      Int       @default(0) // in seconds
+
+  // Performance
+  totalTrades   Int   @default(0)
+  winningTrades Int   @default(0)
+  totalProfit   Float @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([mt5AccountId])
+  @@index([status])
+}
+
+model Trade {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mt5AccountId String
+  mt5Account   MT5Account @relation(fields: [mt5AccountId], references: [id], onDelete: Cascade)
+
+  // Trade Details
+  ticket     String    @unique
+  symbol     String
+  type       String // BUY, SELL
+  volume     Float
+  openPrice  Float
+  openTime   DateTime
+  closePrice Float?
+  closeTime  DateTime?
+
+  // P&L
+  profit     Float @default(0)
+  commission Float @default(0)
+  swap       Float @default(0)
+
+  // EA Info
+  magicNumber Int?
+  comment     String?
+
+  // Status
+  isClosed Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([mt5AccountId])
+  @@index([ticket])
+  @@index([openTime])
+  @@index([isClosed])
+}
+
+model Automation {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+
+  // User Assignment (null = global/admin-wide, userId = user-specific)
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Trigger Configuration
+  triggerType  AutomationTriggerType
+  triggerValue Int? // For trade counts, days, etc.
+  triggerData  Json? // Additional trigger parameters
+
+  // Action Configuration
+  actionTypes AutomationActionType[] // Multiple notification channels
+  actionData  Json? // Action-specific configuration
+
+  // Message Template
+  messageSubject String?
+  messageBody    String
+
+  // Status & Scheduling
+  status   AutomationStatus @default(ACTIVE)
+  priority Int              @default(5)
+
+  // User Control (if assigned to specific user)
+  isUserEnabled Boolean @default(true) // User can disable their automations
+
+  // Statistics
+  totalTriggered Int       @default(0)
+  totalSent      Int       @default(0)
+  totalFailed    Int       @default(0)
+  lastTriggered  DateTime?
+
+  // Relationships
+  logs NotificationLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String? // Admin who created it
+
+  @@index([userId])
+  @@index([triggerType])
+  @@index([status])
+  @@index([createdAt])
+  @@index([isUserEnabled])
+}
+
+model NotificationLog {
+  id           String     @id @default(uuid())
+  automationId String
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Message Details
+  channel   AutomationActionType
+  recipient String // Email, phone number, etc.
+  subject   String?
+  message   String
+
+  // Status
+  status       NotificationStatus @default(PENDING)
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  failedAt     DateTime?
+  errorMessage String?
+
+  // Metadata
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([automationId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model UserInsight {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Trading Performance
+  winRate           Float @default(0)
+  avgProfitPerTrade Float @default(0)
+  avgLossPerTrade   Float @default(0)
+  profitFactor      Float @default(0)
+  maxDrawdown       Float @default(0)
+  sharpeRatio       Float @default(0)
+
+  // Behavior Metrics
+  tradingDaysActive  Int     @default(0)
+  avgTradesPerDay    Float   @default(0)
+  preferredTimeframe String?
+  riskLevel          String? // LOW, MEDIUM, HIGH
+
+  // Engagement
+  lastTradeDate      DateTime?
+  consecutiveWins    Int       @default(0)
+  consecutiveLosses  Int       @default(0)
+  daysSinceLastTrade Int       @default(0)
+
+  // Business Metrics
+  lifetimeValue   Float @default(0)
+  totalRevenue    Float @default(0)
+  churnRisk       Float @default(0) // 0-100 score
+  engagementScore Float @default(0) // 0-100 score
+
+  // Predictions
+  predictedNextAction  String?
+  retentionProbability Float   @default(0.5)
+  upsellProbability    Float   @default(0.5)
+
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([churnRisk])
+  @@index([engagementScore])
+}
+
+model SystemLog {
+  id        String @id @default(uuid())
+  level     String // INFO, WARNING, ERROR
+  component String // WEB, CSHARP_AGENT, EA, DATABASE
+  message   String
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([level])
+  @@index([component])
+  @@index([createdAt])
+}
+
+model MarketCondition {
+  id String @id @default(uuid())
+
+  // Conditions
+  volatility Float
+  spread     Float
+  trend      String
+  newsImpact Boolean @default(false)
+
+  // Safety Assessment
+  safetyIndicator SafetyIndicator
+  reason          String
+
+  // Timestamp
+  timestamp DateTime @default(now())
+
+  @@index([timestamp])
+  @@index([safetyIndicator])
+}
+
+model LeaderboardEntry {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Period
+  period     String // 'daily', 'weekly', 'monthly'
+  periodDate DateTime // Date for the period (day/week/month start)
+
+  // Trading Stats for Period
+  trades        Int   @default(0)
+  winningTrades Int   @default(0)
+  losingTrades  Int   @default(0)
+  profit        Float @default(0)
+  volume        Float @default(0)
+  winRate       Float @default(0)
+
+  // Rankings
+  rank         Int?
+  previousRank Int?
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, period, periodDate])
+}
+
+model IBPartner {
+  id           String @id @default(uuid())
+  email        String @unique
+  passwordHash String
+  companyName  String
+  contactName  String
+  phone        String
+
+  // Referral System
+  ibCode String @unique // Unique coupon code for referrals
+
+  // White Label Settings
+  domain     String? // Custom domain (e.g., yourbrand.com)
+  logo       String? // Logo URL/path
+  favicon    String? // Favicon URL/path
+  brandColor String  @default("#EF4444") // Primary brand color
+  brandName  String? // Custom brand name
+
+  // Status
+  isActive   Boolean @default(false) // Activated by super admin
+  isApproved Boolean @default(false) // Approved by super admin
+
+  // Business Details
+  currentTraders String? // Range of traders
+  message        String? // Application message
+
+  // Pricing Tier (set by admin)
+  pricingTier String @default("tier1") // tier1, tier2, tier3
+  monthlyFee  Float  @default(2500) // $2,500, $4,500, $8,500
+  traderLimit Int    @default(500) // 500, 1000, 2500
+
+  // Commission Settings (set by admin)
+  spreadRevShare Float @default(50) // % of spread revenue (default 50%)
+
+  // Statistics (auto-calculated)
+  totalTraders    Int   @default(0)
+  activeTraders   Int   @default(0)
+  monthlyRevenue  Float @default(0)
+  lifetimeRevenue Float @default(0)
+
+  // Timestamps
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  approvedAt DateTime?
+  approvedBy String? // Admin ID who approved
+
+  // Relations
+  users User[]
+
+  @@index([email])
+  @@index([ibCode])
+  @@index([isActive])
+  @@index([isApproved])
+}
+
+// Agent model for C# MT5 Automation tracking
+model Agent {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Machine Identity
+  machineId   String  @unique // Hardware ID from C# agent
+  machineName String?
+
+  // MT5 Connection Info
+  mt5AccountNumber String?
+  mt5Broker        String?
+  mt5ServerName    String?
+  mt5Version       String?
+
+  // Agent Status
+  status         String    @default("offline") // online, offline, error
+  lastHeartbeat  DateTime?
+  connectedAt    DateTime?
+  disconnectedAt DateTime?
+
+  // EA Status
+  eaLoaded       Boolean @default(false)
+  eaRunning      Boolean @default(false)
+  eaName         String?
+  chartSymbol    String?
+  chartTimeframe String?
+
+  // Trade Copier Configuration
+  tradeCopierActive Boolean @default(false)
+  isMasterAccount   Boolean @default(false)
+  masterAgentId     String? // Reference to master agent if this is slave
+  masterAgent       Agent?  @relation("MasterSlave", fields: [masterAgentId], references: [id])
+  slaveAgents       Agent[] @relation("MasterSlave")
+
+  // Performance Tracking (synced from MT5)
+  totalTrades      Int   @default(0)
+  profitableTrades Int   @default(0)
+  losingTrades     Int   @default(0)
+  totalProfit      Float @default(0)
+  winRate          Float @default(0)
+
+  // AI Optimization Settings
+  indicatorSettings   Json? // Current ATR/indicator thresholds
+  aiOptimizationScore Float     @default(0)
+  lastOptimizedAt     DateTime?
+
+  // API Authentication
+  apiKey String? @unique // For agent-to-server auth
+
+  // System Info
+  osVersion    String?
+  agentVersion String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([machineId])
+  @@index([status])
+  @@index([lastHeartbeat])
+  @@index([mt5AccountNumber])
+}
+
+// Prize configuration for leaderboard
+model Prize {
+  id     String @id @default(uuid())
+  period String // 'daily', 'weekly', 'monthly'
+  rank   Int // 1st, 2nd, 3rd place
+  amount Float // Prize amount in USD
+
+  // Admin control
+  isActive  Boolean @default(true)
+  updatedBy String? // Admin ID
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([period, rank])
+  @@index([period])
+}

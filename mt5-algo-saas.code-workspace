@@ -1,0 +1,117 @@
+{
+	"folders": [
+		{
+			"name": "🌐 Web App",
+			"path": "./web-app"
+		},
+		{
+			"name": "⚙️ C# Agent",
+			"path": "./csharp-agent"
+		},
+		{
+			"name": "📚 Documentation",
+			"path": "./docs"
+		},
+		{
+			"name": "📋 Project Root",
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"**/node_modules": true,
+			"**/.svelte-kit": true,
+			"**/build": true,
+			"**/dist": true,
+			"**/bin": true,
+			"**/obj": true,
+			"**/.DS_Store": true
+		},
+		"explorer.fileNesting.enabled": true,
+		"explorer.fileNesting.patterns": {
+			"*.ts": "${capture}.js, ${capture}.d.ts, ${capture}.map",
+			"*.svelte": "${capture}.svelte.ts",
+			"package.json": "package-lock.json, pnpm-lock.yaml, yarn.lock, .npmrc, .nvmrc",
+			"tsconfig.json": "tsconfig.*.json",
+			"vite.config.ts": "vite.config.*.ts",
+			"tailwind.config.js": "postcss.config.js",
+			".env": ".env.*",
+			"README.md": "STRUCTURE.md, PROJECT-SUMMARY.md, QUICK-REFERENCE.md"
+		},
+		"explorer.sortOrder": "type",
+		"files.associations": {
+			"*.svelte": "svelte",
+			"*.md": "markdown"
+		},
+		"editor.formatOnSave": true,
+		"editor.defaultFormatter": "esbenp.prettier-vscode",
+		"[svelte]": {
+			"editor.defaultFormatter": "svelte.svelte-vscode"
+		},
+		"[csharp]": {
+			"editor.defaultFormatter": "ms-dotnettools.csharp"
+		},
+		"typescript.tsdk": "web-app/node_modules/typescript/lib",
+		"svelte.enable-ts-plugin": true
+	},
+	"extensions": {
+		"recommendations": [
+			"svelte.svelte-vscode",
+			"prisma.prisma",
+			"bradlc.vscode-tailwindcss",
+			"dbaeumer.vscode-eslint",
+			"esbenp.prettier-vscode",
+			"ms-dotnettools.csharp",
+			"ms-dotnettools.csdevkit"
+		]
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "🌐 Launch Web App",
+				"type": "node",
+				"request": "launch",
+				"cwd": "${workspaceFolder:🌐 Web App}",
+				"runtimeExecutable": "npm",
+				"runtimeArgs": ["run", "dev"],
+				"console": "integratedTerminal"
+			},
+			{
+				"name": "⚙️ Launch C# Agent",
+				"type": "coreclr",
+				"request": "launch",
+				"preLaunchTask": "build",
+				"program": "${workspaceFolder:⚙️ C# Agent}/MT5AgentAPI/bin/Debug/net8.0/MT5AgentAPI.dll",
+				"args": [],
+				"cwd": "${workspaceFolder:⚙️ C# Agent}/MT5AgentAPI",
+				"stopAtEntry": false,
+				"console": "internalConsole"
+			}
+		],
+		"compounds": [
+			{
+				"name": "🚀 Launch Full Stack",
+				"configurations": ["🌐 Launch Web App", "⚙️ Launch C# Agent"],
+				"stopAll": true
+			}
+		]
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "build",
+				"command": "dotnet",
+				"type": "process",
+				"args": [
+					"build",
+					"${workspaceFolder:⚙️ C# Agent}/MT5AgentAPI/MT5AgentAPI.csproj",
+					"/property:GenerateFullPaths=true",
+					"/consoleloggerparameters:NoSummary"
+				],
+				"problemMatcher": "$msCompile"
+			}
+		]
+	}
+}

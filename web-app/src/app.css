@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+	--indicator-red: #ef4444;
+	--indicator-orange: #f97316;
+	--indicator-green: #22c55e;
+}
+
+body {
+	@apply bg-black text-white;
+}
+
+.indicator-red {
+	background-color: var(--indicator-red);
+}
+
+.indicator-orange {
+	background-color: var(--indicator-orange);
+}
+
+.indicator-green {
+	background-color: var(--indicator-green);
+}

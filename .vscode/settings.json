@@ -1,0 +1,55 @@
+{
+	"files.exclude": {
+		"**/node_modules": true,
+		"**/.svelte-kit": true,
+		"**/build": true,
+		"**/dist": true,
+		"**/bin": true,
+		"**/obj": true,
+		"**/.DS_Store": true
+	},
+	"search.exclude": {
+		"**/node_modules": true,
+		"**/build": true,
+		"**/.svelte-kit": true,
+		"**/dist": true,
+		"**/bin": true,
+		"**/obj": true
+	},
+	"explorer.fileNesting.enabled": true,
+	"explorer.fileNesting.expand": false,
+	"explorer.fileNesting.patterns": {
+		"*.ts": "${capture}.js, ${capture}.d.ts, ${capture}.map",
+		"*.svelte": "${capture}.svelte.ts",
+		"package.json": "package-lock.json, pnpm-lock.yaml, yarn.lock, .npmrc, .nvmrc",
+		"tsconfig.json": "tsconfig.*.json",
+		"vite.config.ts": "vite.config.*.ts",
+		"svelte.config.js": "postcss.config.js, tailwind.config.js, vite.config.ts",
+		".env.example": ".env, .env.local, .env.development, .env.production",
+		"README.md": "STRUCTURE.md",
+		".gitignore": ".gitattributes, .editorconfig"
+	},
+	"explorer.sortOrder": "type",
+	"explorer.compactFolders": false,
+	"files.associations": {
+		"*.svelte": "svelte",
+		"*.md": "markdown",
+		"*.prisma": "prisma"
+	},
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"[svelte]": {
+		"editor.defaultFormatter": "svelte.svelte-vscode"
+	},
+	"[csharp]": {
+		"editor.defaultFormatter": "ms-dotnettools.csharp"
+	},
+	"[prisma]": {
+		"editor.defaultFormatter": "Prisma.prisma"
+	},
+	"typescript.tsdk": "web-app/node_modules/typescript/lib",
+	"svelte.enable-ts-plugin": true,
+	"tailwindCSS.experimental.classRegex": [
+		["class:\\s*([\"'`][^\"'`]*[\"'`])", "[\"'`]([^\"'`]*)[\"'`]"]
+	]
+}

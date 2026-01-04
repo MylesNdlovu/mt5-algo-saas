@@ -1,0 +1,17 @@
+{
+  "daily": {
+    "first": 100,
+    "second": 50,
+    "third": 25
+  },
+  "weekly": {
+    "first": 500,
+    "second": 250,
+    "third": 100
+  },
+  "monthly": {
+    "first": 2000,
+    "second": 1000,
+    "third": 500
+  }
+}

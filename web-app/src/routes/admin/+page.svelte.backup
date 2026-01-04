@@ -1,0 +1,907 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+
+	let activeTab: 'overview' | 'users' | 'bots' | 'trades' | 'revenue' | 'system' = 'overview';
+	let loading = false;
+	let searchQuery = '';
+	let dateFilter: 'today' | 'week' | 'month' | 'year' | 'all' = 'month';
+	
+	// Mock admin data - Business Owner View
+	let stats = {
+		totalUsers: 247,
+		activeUsers: 189,
+		trialUsers: 34,
+		premiumUsers: 155,
+		totalTrades: 15847,
+		totalVolume: 1284.73,
+		monthlyRevenue: 12450.00,
+		yearlyRevenue: 98750.00,
+		totalCommissions: 3420.50,
+		activeEAs: 156,
+		serverUptime: 99.8,
+		avgWinRate: 68.5,
+		conversionRate: 62.5,
+		churnRate: 4.2,
+		mrr: 12450.00, // Monthly Recurring Revenue
+		arr: 149400.00 // Annual Recurring Revenue
+	};
+
+	let users = [
+		{ 
+			id: 1, 
+			email: 'trader@scalperium.com', 
+			name: 'John Trader', 
+			status: 'active', 
+			subscription: 'premium',
+			monthlyFee: 99.00,
+			balance: 15750.50, 
+			trades: 234, 
+			winRate: 71.2, 
+			profit: 4520.30,
+			commission: 135.60,
+			joined: '2025-11-15',
+			lastActive: '2025-12-02 14:23',
+			mt5Account: '12345678'
+		},
+		{ 
+			id: 2, 
+			email: 'demo@scalperium.com', 
+			name: 'Demo User', 
+			status: 'active', 
+			subscription: 'trial',
+			monthlyFee: 0,
+			balance: 5000.00, 
+			trades: 45, 
+			winRate: 62.3, 
+			profit: 120.50,
+			commission: 0,
+			joined: '2025-11-28',
+			lastActive: '2025-12-02 13:45',
+			mt5Account: '87654321'
+		},
+		{ 
+			id: 3, 
+			email: 'pro@scalperium.com', 
+			name: 'Pro Trader', 
+			status: 'active', 
+			subscription: 'premium',
+			monthlyFee: 149.00,
+			balance: 48920.30, 
+			trades: 892, 
+			winRate: 75.8, 
+			profit: 12450.80,
+			commission: 373.52,
+			joined: '2025-10-01',
+			lastActive: '2025-12-02 14:25',
+			mt5Account: '11223344'
+		},
+		{ 
+			id: 4, 
+			email: 'inactive@scalperium.com', 
+			name: 'Inactive User', 
+			status: 'suspended', 
+			subscription: 'basic',
+			monthlyFee: 49.00,
+			balance: 1200.00, 
+			trades: 12, 
+			winRate: 45.2, 
+			profit: -230.40,
+			commission: 0,
+			joined: '2025-11-20',
+			lastActive: '2025-11-25 10:15',
+			mt5Account: '99887766'
+		},
+		{ 
+			id: 5, 
+			email: 'vip@scalperium.com', 
+			name: 'VIP Trader', 
+			status: 'active', 
+			subscription: 'vip',
+			monthlyFee: 299.00,
+			balance: 125000.00, 
+			trades: 1523, 
+			winRate: 79.3, 
+			profit: 28450.90,
+			commission: 853.52,
+			joined: '2025-09-15',
+			lastActive: '2025-12-02 14:28',
+			mt5Account: '55667788'
+		}
+	];
+
+	let bots = [
+		{ id: 1, userId: 1, userName: 'John Trader', name: 'SCALPERIUM Bot #1', status: 'active', safetyMode: 'green', trades: 1234, profit: 4520.30, uptime: '12h 34m', lastTrade: '2025-12-02 14:23' },
+		{ id: 2, userId: 2, userName: 'Demo User', name: 'Demo EA', status: 'paused', safetyMode: 'orange', trades: 45, profit: 120.50, uptime: '2h 15m', lastTrade: '2025-12-02 13:30' },
+		{ id: 3, userId: 3, userName: 'Pro Trader', name: 'Pro Scalper', status: 'active', safetyMode: 'green', trades: 892, profit: 12450.80, uptime: '48h 12m', lastTrade: '2025-12-02 14:22' },
+		{ id: 4, userId: 1, userName: 'John Trader', name: 'SCALPERIUM Bot #2', status: 'stopped', safetyMode: 'red', trades: 567, profit: -230.40, uptime: '0h 0m', lastTrade: '2025-11-28 16:45' },
+		{ id: 5, userId: 5, userName: 'VIP Trader', name: 'VIP Elite Bot', status: 'active', safetyMode: 'green', trades: 1523, profit: 28450.90, uptime: '120h 45m', lastTrade: '2025-12-02 14:28' }
+	];
+
+	let recentTrades = [
+		{ id: 1, user: 'John Trader', userId: 1, symbol: 'XAUUSD', type: 'BUY', volume: 0.05, openPrice: 2045.30, closePrice: 2046.20, profit: 45.30, commission: 1.35, time: '2025-12-02 14:23:45', duration: '2m 15s' },
+		{ id: 2, user: 'Pro Trader', userId: 3, symbol: 'XAUUSD', type: 'SELL', volume: 0.10, openPrice: 2045.80, closePrice: 2044.90, profit: 89.20, commission: 2.67, time: '2025-12-02 14:22:10', duration: '4m 32s' },
+		{ id: 3, user: 'John Trader', userId: 1, symbol: 'XAUUSD', type: 'BUY', volume: 0.05, openPrice: 2046.50, closePrice: 2046.20, profit: -12.40, commission: 1.35, time: '2025-12-02 14:20:33', duration: '1m 45s' },
+		{ id: 4, user: 'Demo User', userId: 2, symbol: 'XAUUSD', type: 'SELL', volume: 0.01, openPrice: 2045.40, closePrice: 2044.80, profit: 5.60, commission: 0, time: '2025-12-02 14:19:20', duration: '3m 12s' },
+		{ id: 5, user: 'VIP Trader', userId: 5, symbol: 'XAUUSD', type: 'BUY', volume: 0.20, openPrice: 2044.50, closePrice: 2045.30, profit: 156.80, commission: 4.70, time: '2025-12-02 14:18:05', duration: '5m 28s' }
+	];
+
+	let revenueData = [
+		{ month: 'June 2025', subscriptions: 8450.00, commissions: 245.30, total: 8695.30, users: 187, newUsers: 23, churnedUsers: 5 },
+		{ month: 'July 2025', subscriptions: 9120.00, commissions: 287.50, total: 9407.50, users: 205, newUsers: 31, churnedUsers: 8 },
+		{ month: 'August 2025', subscriptions: 9890.00, commissions: 312.80, total: 10202.80, users: 228, newUsers: 28, churnedUsers: 5 },
+		{ month: 'September 2025', subscriptions: 10540.00, commissions: 334.20, total: 10874.20, users: 251, newUsers: 35, churnedUsers: 12 },
+		{ month: 'October 2025', subscriptions: 11230.00, commissions: 356.70, total: 11586.70, users: 274, newUsers: 41, churnedUsers: 18 },
+		{ month: 'November 2025', subscriptions: 11890.00, commissions: 389.40, total: 12279.40, users: 297, newUsers: 38, churnedUsers: 15 },
+		{ month: 'December 2025', subscriptions: 12450.00, commissions: 420.50, total: 12870.50, users: 320, newUsers: 42, churnedUsers: 19 }
+	];
+
+	let systemLogs = [
+		{ id: 1, level: 'info', message: 'User trader@scalperium.com upgraded to Premium plan', time: '2025-12-02 14:25:30', category: 'billing' },
+		{ id: 2, level: 'success', message: 'Monthly revenue report generated: $12,450.00', time: '2025-12-02 14:24:15', category: 'system' },
+		{ id: 3, level: 'warning', message: 'High server load detected: 85%', time: '2025-12-02 14:22:45', category: 'performance' },
+		{ id: 4, level: 'error', message: 'Payment failed for user inactive@scalperium.com', time: '2025-12-02 14:20:10', category: 'billing' },
+		{ id: 5, level: 'info', message: 'New user registration: vip@scalperium.com', time: '2025-12-02 14:15:00', category: 'users' },
+		{ id: 6, level: 'success', message: 'Daily backup completed successfully', time: '2025-12-02 04:00:00', category: 'system' }
+	];
+
+	function handleLogout() {
+		goto('/');
+	}
+
+	function toggleUserStatus(userId: number) {
+		const user = users.find(u => u.id === userId);
+		if (user) {
+			user.status = user.status === 'active' ? 'suspended' : 'active';
+			users = [...users];
+		}
+	}
+
+	function viewUserDetails(userId: number) {
+		// Navigate to user detail page or show modal
+		console.log('View user:', userId);
+	}
+
+	function exportData(type: string) {
+		console.log('Exporting:', type);
+		// Implement CSV export
+	}
+
+	$: filteredUsers = users.filter(u => 
+		(u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+		u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+		u.mt5Account.includes(searchQuery))
+	);
+
+	$: totalMonthlyRevenue = users.filter(u => u.status === 'active').reduce((sum, u) => sum + u.monthlyFee, 0);
+	$: totalCommissions = users.reduce((sum, u) => sum + u.commission, 0);
+</script>
+
+<div class="min-h-screen bg-black">
+	<!-- Admin Header -->
+	<header class="border-b border-gray-800 bg-black/95 backdrop-blur-sm sticky top-0 z-50">
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-3">
+					<img src="/logo.png" alt="SCALPERIUM Admin" class="w-12 h-12" />
+					<div>
+						<h1 class="text-xl font-bold uppercase" style="font-family: 'Orbitron', sans-serif; color: #D4AF37; letter-spacing: 0.1em;">
+							SCALPERIUM ADMIN
+						</h1>
+						<p class="text-xs text-gray-500">Business Control Panel</p>
+					</div>
+				</div>
+				<div class="flex items-center gap-2">
+					<div class="hidden md:flex items-center gap-2 px-3 py-2 bg-gray-900 rounded-lg border border-gray-800">
+						<div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+						<span class="text-xs text-gray-400">System Online</span>
+					</div>
+					<a href="/dashboard" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-all text-sm">
+						User View
+					</a>
+					<button
+						on:click={handleLogout}
+						class="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/50 text-red-400 rounded-lg transition-all text-sm"
+					>
+						Logout
+					</button>
+				</div>
+			</div>
+		</div>
+	</header>
+
+	{#if loading}
+		<div class="flex items-center justify-center h-64">
+			<div class="text-xl" style="color: #D4AF37;">Loading...</div>
+		</div>
+	{:else}
+		<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+			<!-- Tab Navigation -->
+			<div class="mb-6 border-b border-gray-800">
+				<nav class="flex gap-1 overflow-x-auto">
+					<button
+						on:click={() => activeTab = 'overview'}
+						class="px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
+						class:border-[#D4AF37]={activeTab === 'overview'}
+						class:text-[#D4AF37]={activeTab === 'overview'}
+						class:border-transparent={activeTab !== 'overview'}
+						class:text-gray-400={activeTab !== 'overview'}
+					>
+						📊 Overview
+					</button>
+					<button
+						on:click={() => activeTab = 'users'}
+						class="px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
+						class:border-[#D4AF37]={activeTab === 'users'}
+						class:text-[#D4AF37]={activeTab === 'users'}
+						class:border-transparent={activeTab !== 'users'}
+						class:text-gray-400={activeTab !== 'users'}
+					>
+						👥 Users ({stats.totalUsers})
+					</button>
+					<button
+						on:click={() => activeTab = 'bots'}
+						class="px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
+						class:border-[#D4AF37]={activeTab === 'bots'}
+						class:text-[#D4AF37]={activeTab === 'bots'}
+						class:border-transparent={activeTab !== 'bots'}
+						class:text-gray-400={activeTab !== 'bots'}
+					>
+						🤖 Bots ({stats.activeEAs})
+					</button>
+					<button
+						on:click={() => activeTab = 'trades'}
+						class="px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
+						class:border-[#D4AF37]={activeTab === 'trades'}
+						class:text-[#D4AF37]={activeTab === 'trades'}
+						class:border-transparent={activeTab !== 'trades'}
+						class:text-gray-400={activeTab !== 'trades'}
+					>
+						💱 Trades
+					</button>
+					<button
+						on:click={() => activeTab = 'revenue'}
+						class="px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
+						class:border-[#D4AF37]={activeTab === 'revenue'}
+						class:text-[#D4AF37]={activeTab === 'revenue'}
+						class:border-transparent={activeTab !== 'revenue'}
+						class:text-gray-400={activeTab !== 'revenue'}
+					>
+						💰 Revenue
+					</button>
+					<button
+						on:click={() => activeTab = 'system'}
+						class="px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
+						class:border-[#D4AF37]={activeTab === 'system'}
+						class:text-[#D4AF37]={activeTab === 'system'}
+						class:border-transparent={activeTab !== 'system'}
+						class:text-gray-400={activeTab !== 'system'}
+					>
+						⚙️ System
+					</button>
+				</nav>
+			</div>
+
+			<!-- Date Filter (Global) -->
+			<div class="mb-6 flex items-center justify-between">
+				<div class="flex items-center gap-2">
+					<span class="text-sm text-gray-400">Period:</span>
+					<div class="flex gap-1">
+						<button
+							on:click={() => dateFilter = 'today'}
+							class="px-3 py-1.5 text-xs rounded-lg transition-colors"
+							class:bg-[#D4AF37]={dateFilter === 'today'}
+							class:text-black={dateFilter === 'today'}
+							class:bg-gray-800={dateFilter !== 'today'}
+							class:text-gray-400={dateFilter !== 'today'}
+						>
+							Today
+						</button>
+						<button
+							on:click={() => dateFilter = 'week'}
+							class="px-3 py-1.5 text-xs rounded-lg transition-colors"
+							class:bg-[#D4AF37]={dateFilter === 'week'}
+							class:text-black={dateFilter === 'week'}
+							class:bg-gray-800={dateFilter !== 'week'}
+							class:text-gray-400={dateFilter !== 'week'}
+						>
+							Week
+						</button>
+						<button
+							on:click={() => dateFilter = 'month'}
+							class="px-3 py-1.5 text-xs rounded-lg transition-colors"
+							class:bg-[#D4AF37]={dateFilter === 'month'}
+							class:text-black={dateFilter === 'month'}
+							class:bg-gray-800={dateFilter !== 'month'}
+							class:text-gray-400={dateFilter !== 'month'}
+						>
+							Month
+						</button>
+						<button
+							on:click={() => dateFilter = 'year'}
+							class="px-3 py-1.5 text-xs rounded-lg transition-colors"
+							class:bg-[#D4AF37]={dateFilter === 'year'}
+							class:text-black={dateFilter === 'year'}
+							class:bg-gray-800={dateFilter !== 'year'}
+							class:text-gray-400={dateFilter !== 'year'}
+						>
+							Year
+						</button>
+						<button
+							on:click={() => dateFilter = 'all'}
+							class="px-3 py-1.5 text-xs rounded-lg transition-colors"
+							class:bg-[#D4AF37]={dateFilter === 'all'}
+							class:text-black={dateFilter === 'all'}
+							class:bg-gray-800={dateFilter !== 'all'}
+							class:text-gray-400={dateFilter !== 'all'}
+						>
+							All Time
+						</button>
+					</div>
+				</div>
+				<div class="flex items-center gap-2">
+					<button on:click={() => exportData(activeTab)} class="px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors">
+						📥 Export
+					</button>
+					<button class="px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors">
+						🔄 Refresh
+					</button>
+				</div>
+			</div>
+
+			<!-- Overview Tab -->
+			{#if activeTab === 'overview'}
+				<div class="space-y-6">
+					<!-- Key Business Metrics -->
+					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+						<!-- Monthly Revenue -->
+						<div class="bg-gradient-to-br from-green-900 to-green-950 rounded-xl p-6 border border-green-800">
+							<div class="flex items-center justify-between mb-2">
+								<div class="text-xs text-green-400 uppercase tracking-wider">Monthly Revenue</div>
+								<div class="text-xs text-green-400">💵</div>
+							</div>
+							<div class="text-3xl font-bold text-white mb-1">${stats.monthlyRevenue.toLocaleString()}</div>
+							<div class="text-xs text-green-400">MRR • +12.5% vs last month</div>
+						</div>
+
+						<!-- Total Users -->
+						<div class="bg-gradient-to-br from-blue-900 to-blue-950 rounded-xl p-6 border border-blue-800">
+							<div class="flex items-center justify-between mb-2">
+								<div class="text-xs text-blue-400 uppercase tracking-wider">Total Users</div>
+								<div class="text-xs text-blue-400">👥</div>
+							</div>
+							<div class="text-3xl font-bold text-white mb-1">{stats.totalUsers}</div>
+							<div class="text-xs text-blue-400">{stats.activeUsers} active • {stats.premiumUsers} premium</div>
+						</div>
+
+						<!-- Commissions -->
+						<div class="bg-gradient-to-br from-purple-900 to-purple-950 rounded-xl p-6 border border-purple-800">
+							<div class="flex items-center justify-between mb-2">
+								<div class="text-xs text-purple-400 uppercase tracking-wider">Commissions</div>
+								<div class="text-xs text-purple-400">💰</div>
+							</div>
+							<div class="text-3xl font-bold text-white mb-1">${stats.totalCommissions.toLocaleString()}</div>
+							<div class="text-xs text-purple-400">From {stats.totalTrades.toLocaleString()} trades</div>
+						</div>
+
+						<!-- Conversion Rate -->
+						<div class="bg-gradient-to-br from-yellow-900 to-yellow-950 rounded-xl p-6 border border-yellow-800">
+							<div class="flex items-center justify-between mb-2">
+								<div class="text-xs text-yellow-400 uppercase tracking-wider">Conversion Rate</div>
+								<div class="text-xs text-yellow-400">📈</div>
+							</div>
+							<div class="text-3xl font-bold text-white mb-1">{stats.conversionRate}%</div>
+							<div class="text-xs text-yellow-400">Trial to Premium • Churn: {stats.churnRate}%</div>
+						</div>
+					</div>
+
+					<!-- Charts Row -->
+					<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+						<!-- Revenue Growth Chart (Mock) -->
+						<div class="bg-gray-900 rounded-xl border border-gray-800 p-6">
+							<h3 class="text-lg font-bold mb-4 text-white">Revenue Growth</h3>
+							<div class="space-y-3">
+								{#each revenueData.slice(-7) as data, i}
+									<div>
+										<div class="flex items-center justify-between text-sm mb-1">
+											<span class="text-gray-400">{data.month}</span>
+											<span class="text-green-400 font-medium">${data.total.toLocaleString()}</span>
+										</div>
+										<div class="h-2 bg-gray-800 rounded-full overflow-hidden">
+											<div class="h-full bg-gradient-to-r from-green-600 to-green-400" style="width: {(data.total / 15000 * 100)}%"></div>
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
+
+						<!-- User Activity -->
+						<div class="bg-gray-900 rounded-xl border border-gray-800 p-6">
+							<h3 class="text-lg font-bold mb-4 text-white">User Activity</h3>
+							<div class="space-y-4">
+								<div class="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
+									<div>
+										<div class="text-sm text-gray-400 mb-1">Active Bots</div>
+										<div class="text-2xl font-bold text-green-400">{stats.activeEAs}</div>
+									</div>
+									<div class="text-3xl">🤖</div>
+								</div>
+								<div class="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
+									<div>
+										<div class="text-sm text-gray-400 mb-1">Total Trades (24h)</div>
+										<div class="text-2xl font-bold text-blue-400">1,247</div>
+									</div>
+									<div class="text-3xl">💱</div>
+								</div>
+								<div class="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
+									<div>
+										<div class="text-sm text-gray-400 mb-1">Avg Win Rate</div>
+										<div class="text-2xl font-bold" style="color: #D4AF37;">{stats.avgWinRate}%</div>
+									</div>
+									<div class="text-3xl">📊</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Quick Stats Grid -->
+					<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+						<div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+							<div class="text-xs text-gray-500 mb-1">Trial Users</div>
+								<div class="text-2xl font-bold text-gray-400">{stats.trialUsers}</div>
+						</div>
+						<div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+							<div class="text-xs text-gray-500 mb-1">Premium Users</div>
+							<div class="text-2xl font-bold text-green-400">{stats.premiumUsers}</div>
+						</div>
+						<div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+							<div class="text-xs text-gray-500 mb-1">Server Uptime</div>
+							<div class="text-2xl font-bold text-blue-400">{stats.serverUptime}%</div>
+						</div>
+						<div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+							<div class="text-xs text-gray-500 mb-1">ARR</div>
+							<div class="text-2xl font-bold" style="color: #D4AF37;">${(stats.arr / 1000).toFixed(0)}K</div>
+						</div>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Users Tab -->
+			{#if activeTab === 'users'}
+				<div class="space-y-4">
+					<!-- Search & Filter Bar -->
+					<div class="flex items-center gap-4">
+						<div class="flex-1">
+							<input
+								type="text"
+								bind:value={searchQuery}
+								placeholder="Search by email, name, or MT5 account..."
+								class="w-full px-4 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white placeholder-gray-500 focus:border-[#D4AF37] focus:outline-none"
+							/>
+						</div>
+						<select class="px-4 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white focus:border-[#D4AF37] focus:outline-none">
+							<option value="all">All Plans</option>
+							<option value="trial">Trial</option>
+							<option value="basic">Basic</option>
+							<option value="premium">Premium</option>
+							<option value="vip">VIP</option>
+						</select>
+						<select class="px-4 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white focus:border-[#D4AF37] focus:outline-none">
+							<option value="all">All Status</option>
+							<option value="active">Active</option>
+							<option value="suspended">Suspended</option>
+						</select>
+					</div>
+
+					<!-- Summary Cards -->
+					<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+						<div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+							<div class="text-xs text-gray-500 mb-1">Monthly Revenue</div>
+							<div class="text-xl font-bold text-green-400">${totalMonthlyRevenue.toLocaleString()}</div>
+						</div>
+						<div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+							<div class="text-xs text-gray-500 mb-1">Total Commissions</div>
+							<div class="text-xl font-bold text-purple-400">${totalCommissions.toLocaleString()}</div>
+						</div>
+						<div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+							<div class="text-xs text-gray-500 mb-1">Active Users</div>
+							<div class="text-xl font-bold text-blue-400">{filteredUsers.filter(u => u.status === 'active').length}</div>
+						</div>
+						<div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+							<div class="text-xs text-gray-500 mb-1">Total Profit</div>
+							<div class="text-xl font-bold" style="color: #D4AF37;">${filteredUsers.reduce((sum, u) => sum + u.profit, 0).toLocaleString()}</div>
+						</div>
+					</div>
+
+					<!-- Users Table -->
+					<div class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+						<div class="overflow-x-auto">
+							<table class="w-full">
+								<thead class="bg-black border-b border-gray-800">
+									<tr>
+										<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">User</th>
+										<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Plan</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Monthly Fee</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Balance</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Trades</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Win Rate</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Profit</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Commission</th>
+										<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Joined</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Actions</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-gray-800">
+									{#each filteredUsers as user}
+										<tr class="hover:bg-gray-800 transition-colors">
+											<td class="px-4 py-4">
+												<div>
+													<div class="text-sm font-medium text-white">{user.name}</div>
+													<div class="text-xs text-gray-500">{user.email}</div>
+													<div class="text-xs text-gray-600">MT5: {user.mt5Account}</div>
+												</div>
+											</td>
+											<td class="px-4 py-4">
+												<span class="px-2 py-1 text-xs font-medium rounded-full uppercase" 
+													class:bg-gray-800={user.subscription === 'trial'}
+													class:text-gray-400={user.subscription === 'trial'}
+													class:bg-gray-700={user.subscription === 'basic'}
+													class:text-gray-300={user.subscription === 'basic'}
+													class:bg-blue-900={user.subscription === 'premium'}
+													class:text-blue-400={user.subscription === 'premium'}
+													class:bg-purple-900={user.subscription === 'vip'}
+													class:text-purple-400={user.subscription === 'vip'}
+												>
+													{user.subscription}
+												</span>
+											</td>
+											<td class="px-4 py-4 text-right">
+												<span class="text-sm font-medium text-green-400">${user.monthlyFee}</span>
+											</td>
+											<td class="px-4 py-4 text-right">
+												<span class="text-sm text-white">${user.balance.toLocaleString()}</span>
+											</td>
+											<td class="px-4 py-4 text-right">
+												<span class="text-sm text-gray-400">{user.trades}</span>
+											</td>
+											<td class="px-4 py-4 text-right">
+												<span class="text-sm font-medium" 
+													class:text-green-400={user.winRate >= 70}
+													class:text-gray-400={user.winRate >= 50 && user.winRate < 70}
+													class:text-red-400={user.winRate < 50}
+												>
+													{user.winRate}%
+												</span>
+											</td>
+											<td class="px-4 py-4 text-right">
+												<span class="text-sm font-medium" class:text-green-400={user.profit >= 0} class:text-red-400={user.profit < 0}>
+													{user.profit >= 0 ? '+' : ''}{user.profit.toLocaleString()}
+												</span>
+											</td>
+											<td class="px-4 py-4 text-right">
+												<span class="text-sm font-medium text-purple-400">${user.commission.toLocaleString()}</span>
+											</td>
+											<td class="px-4 py-4">
+												<div class="text-xs text-gray-500">{user.joined}</div>
+												<div class="text-xs text-gray-600">Last: {user.lastActive}</div>
+											</td>
+											<td class="px-4 py-4 text-right">
+												<div class="flex items-center justify-end gap-2">
+													<button
+														on:click={() => viewUserDetails(user.id)}
+														class="px-2 py-1 text-xs font-medium rounded bg-blue-900 text-blue-400 hover:bg-blue-800 transition-colors"
+													>
+														View
+													</button>
+													<button
+														on:click={() => toggleUserStatus(user.id)}
+														class="px-2 py-1 text-xs font-medium rounded transition-colors {user.status === 'active' ? 'bg-red-900 text-red-400 hover:bg-red-800' : 'bg-green-900 text-green-400 hover:bg-green-800'}"
+													>
+														{user.status === 'active' ? 'Suspend' : 'Activate'}
+													</button>
+												</div>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+								<tfoot class="bg-black border-t border-gray-800">
+									<tr>
+										<td colspan="2" class="px-4 py-3 text-sm font-bold text-white">TOTALS</td>
+										<td class="px-4 py-3 text-right text-sm font-bold text-green-400">${totalMonthlyRevenue.toLocaleString()}</td>
+										<td class="px-4 py-3 text-right text-sm font-bold text-white">${filteredUsers.reduce((sum, u) => sum + u.balance, 0).toLocaleString()}</td>
+										<td class="px-4 py-3 text-right text-sm font-bold text-gray-400">{filteredUsers.reduce((sum, u) => sum + u.trades, 0)}</td>
+										<td class="px-4 py-3"></td>
+										<td class="px-4 py-3 text-right text-sm font-bold text-green-400">${filteredUsers.reduce((sum, u) => sum + u.profit, 0).toLocaleString()}</td>
+										<td class="px-4 py-3 text-right text-sm font-bold text-purple-400">${totalCommissions.toLocaleString()}</td>
+										<td colspan="2" class="px-4 py-3"></td>
+									</tr>
+								</tfoot>
+							</table>
+						</div>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Bots Tab -->
+			{#if activeTab === 'bots'}
+				<div class="space-y-4">
+					<div class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+						<div class="overflow-x-auto">
+							<table class="w-full">
+								<thead class="bg-black border-b border-gray-800">
+									<tr>
+										<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Bot Name</th>
+										<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">User</th>
+										<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Status</th>
+										<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Safety</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Trades</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Profit</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Uptime</th>
+										<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Last Trade</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-gray-800">
+									{#each bots as bot}
+										<tr class="hover:bg-gray-800 transition-colors">
+											<td class="px-4 py-4">
+												<div class="text-sm font-medium text-white">{bot.name}</div>
+												<div class="text-xs text-gray-500">ID: {bot.id}</div>
+											</td>
+											<td class="px-4 py-4">
+												<div class="text-sm text-gray-300">{bot.userName}</div>
+												<div class="text-xs text-gray-600">User #{bot.userId}</div>
+											</td>
+											<td class="px-4 py-4">
+												<span class="px-2 py-1 text-xs font-medium rounded-full" 
+													class:bg-green-900={bot.status === 'active'} 
+													class:text-green-400={bot.status === 'active'} 
+													class:bg-gray-800={bot.status === 'paused'} 
+													class:text-gray-400={bot.status === 'paused'} 
+													class:bg-red-900={bot.status === 'stopped'} 
+													class:text-red-400={bot.status === 'stopped'}
+												>
+													{bot.status}
+												</span>
+											</td>
+											<td class="px-4 py-4">
+												<div class="flex items-center gap-2">
+													<div class="w-3 h-3 rounded-full" 
+														class:bg-red-500={bot.safetyMode === 'red'} 
+														class:bg-red-500={bot.safetyMode === 'orange'} 
+														class:bg-green-500={bot.safetyMode === 'green'}
+													></div>
+													<span class="text-xs text-gray-400 capitalize">{bot.safetyMode}</span>
+												</div>
+											</td>
+											<td class="px-4 py-4 text-right">
+												<span class="text-sm text-gray-400">{bot.trades}</span>
+											</td>
+											<td class="px-4 py-4 text-right">
+												<span class="text-sm font-medium" class:text-green-400={bot.profit >= 0} class:text-red-400={bot.profit < 0}>
+													{bot.profit >= 0 ? '+' : ''}{bot.profit.toLocaleString()}
+												</span>
+											</td>
+											<td class="px-4 py-4 text-right">
+												<span class="text-sm text-gray-400">{bot.uptime}</span>
+											</td>
+											<td class="px-4 py-4">
+												<span class="text-xs text-gray-500">{bot.lastTrade}</span>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Trades Tab -->
+			{#if activeTab === 'trades'}
+				<div class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+					<div class="overflow-x-auto">
+						<table class="w-full">
+							<thead class="bg-black border-b border-gray-800">
+								<tr>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">User</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Symbol</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Type</th>
+									<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Volume</th>
+									<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Open</th>
+									<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Close</th>
+									<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Profit</th>
+									<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Commission</th>
+									<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Duration</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Time</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-800">
+								{#each recentTrades as trade}
+									<tr class="hover:bg-gray-800 transition-colors">
+										<td class="px-4 py-4">
+											<div class="text-sm text-white">{trade.user}</div>
+											<div class="text-xs text-gray-600">ID: {trade.userId}</div>
+										</td>
+										<td class="px-4 py-4">
+											<span class="text-sm font-medium" style="color: #D4AF37;">{trade.symbol}</span>
+										</td>
+										<td class="px-4 py-4">
+											<span class="px-2 py-1 text-xs font-medium rounded" 
+												class:bg-green-900={trade.type === 'BUY'} 
+												class:text-green-400={trade.type === 'BUY'} 
+												class:bg-red-900={trade.type === 'SELL'} 
+												class:text-red-400={trade.type === 'SELL'}
+											>
+												{trade.type}
+											</span>
+										</td>
+										<td class="px-4 py-4 text-right">
+											<span class="text-sm text-gray-400">{trade.volume}</span>
+										</td>
+										<td class="px-4 py-4 text-right">
+											<span class="text-sm text-gray-400">{trade.openPrice}</span>
+										</td>
+										<td class="px-4 py-4 text-right">
+											<span class="text-sm text-gray-400">{trade.closePrice}</span>
+										</td>
+										<td class="px-4 py-4 text-right">
+											<span class="text-sm font-medium" class:text-green-400={trade.profit >= 0} class:text-red-400={trade.profit < 0}>
+												{trade.profit >= 0 ? '+' : ''}{trade.profit}
+											</span>
+										</td>
+										<td class="px-4 py-4 text-right">
+											<span class="text-sm text-purple-400">{trade.commission}</span>
+										</td>
+										<td class="px-4 py-4 text-right">
+											<span class="text-xs text-gray-500">{trade.duration}</span>
+										</td>
+										<td class="px-4 py-4">
+											<span class="text-xs text-gray-500">{trade.time}</span>
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Revenue Tab -->
+			{#if activeTab === 'revenue'}
+				<div class="space-y-6">
+					<!-- Revenue Summary -->
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+						<div class="bg-gradient-to-br from-green-900 to-green-950 rounded-xl p-6 border border-green-800">
+							<div class="text-xs text-green-400 mb-2 uppercase tracking-wider">Total Subscriptions</div>
+							<div class="text-3xl font-bold text-white">${stats.monthlyRevenue.toLocaleString()}</div>
+							<div class="text-xs text-green-400 mt-2">From {stats.activeUsers} active users</div>
+						</div>
+						<div class="bg-gradient-to-br from-purple-900 to-purple-950 rounded-xl p-6 border border-purple-800">
+							<div class="text-xs text-purple-400 mb-2 uppercase tracking-wider">Total Commissions</div>
+							<div class="text-3xl font-bold text-white">${stats.totalCommissions.toLocaleString()}</div>
+							<div class="text-xs text-purple-400 mt-2">From {stats.totalTrades.toLocaleString()} trades</div>
+						</div>
+						<div class="bg-gradient-to-br from-red-900 to-red-950 rounded-xl p-6 border border-red-800">
+							<div class="text-xs text-red-400 mb-2 uppercase tracking-wider">Annual Revenue</div>
+							<div class="text-2xl font-bold text-white">${(stats.arr / 1000).toFixed(1)}K</div>
+							<div class="text-xs text-red-400 mt-2">ARR • MRR: ${(stats.mrr / 1000).toFixed(1)}K</div>
+						</div>
+					</div>
+
+					<!-- Monthly Revenue Breakdown -->
+					<div class="bg-gray-900 rounded-xl border border-gray-800">
+						<div class="p-4 border-b border-gray-800">
+							<h3 class="text-lg font-semibold text-white">Monthly Revenue History</h3>
+						</div>
+						<div class="overflow-x-auto">
+							<table class="w-full">
+								<thead class="bg-black border-b border-gray-800">
+									<tr>
+										<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Month</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Subscriptions</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Commissions</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Total Revenue</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Users</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">New</th>
+										<th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Churned</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-gray-800">
+									{#each revenueData as data}
+										<tr class="hover:bg-gray-800 transition-colors">
+											<td class="px-4 py-4 text-sm font-medium text-white">{data.month}</td>
+											<td class="px-4 py-4 text-right text-sm text-green-400">${data.subscriptions.toLocaleString()}</td>
+											<td class="px-4 py-4 text-right text-sm text-purple-400">${data.commissions.toLocaleString()}</td>
+											<td class="px-4 py-4 text-right text-sm font-bold text-white">${data.total.toLocaleString()}</td>
+											<td class="px-4 py-4 text-right text-sm text-blue-400">{data.users}</td>
+											<td class="px-4 py-4 text-right text-sm text-green-400">+{data.newUsers}</td>
+											<td class="px-4 py-4 text-right text-sm text-red-400">-{data.churnedUsers}</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			{/if}
+
+			<!-- System Tab -->
+			{#if activeTab === 'system'}
+				<div class="space-y-6">
+					<!-- System Logs -->
+					<div class="bg-gray-900 rounded-xl border border-gray-800">
+						<div class="p-4 border-b border-gray-800 flex items-center justify-between">
+							<h3 class="text-sm font-semibold text-white">System Logs</h3>
+							<select class="px-3 py-1 text-xs bg-gray-800 border border-gray-700 rounded text-white">
+								<option>All Categories</option>
+								<option>Billing</option>
+								<option>Users</option>
+								<option>System</option>
+								<option>Performance</option>
+							</select>
+						</div>
+						<div class="divide-y divide-gray-800 max-h-96 overflow-y-auto">
+							{#each systemLogs as log}
+								<div class="p-4 hover:bg-gray-800 transition-colors">
+									<div class="flex items-start gap-3">
+										<div class="mt-1">
+											{#if log.level === 'error'}
+												<div class="w-2 h-2 rounded-full bg-red-500"></div>
+											{:else if log.level === 'warning'}
+												<div class="w-2 h-2 rounded-full bg-gray-500"></div>
+											{:else if log.level === 'success'}
+												<div class="w-2 h-2 rounded-full bg-green-500"></div>
+											{:else}
+												<div class="w-2 h-2 rounded-full bg-blue-500"></div>
+											{/if}
+										</div>
+										<div class="flex-1">
+											<div class="text-sm text-white">{log.message}</div>
+											<div class="flex items-center gap-2 mt-1">
+												<span class="text-xs text-gray-500">{log.time}</span>
+												<span class="text-xs text-gray-600">•</span>
+												<span class="text-xs text-gray-600">{log.category}</span>
+											</div>
+										</div>
+										<span class="px-2 py-1 text-xs font-medium rounded uppercase" 
+											class:bg-red-900={log.level === 'error'} 
+											class:text-red-400={log.level === 'error'} 
+												class:bg-gray-800={log.level === 'warning'} 
+												class:text-gray-400={log.level === 'warning'}
+											class:bg-green-900={log.level === 'success'} 
+											class:text-green-400={log.level === 'success'} 
+											class:bg-blue-900={log.level === 'info'} 
+											class:text-blue-400={log.level === 'info'}
+										>
+											{log.level}
+										</span>
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+
+					<!-- System Controls -->
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<button class="p-6 bg-gradient-to-br from-blue-900 to-blue-950 border border-blue-800 rounded-xl hover:from-blue-800 hover:to-blue-900 transition-all text-left">
+							<div class="text-lg font-bold text-blue-400 mb-2">🔄 Restart Services</div>
+							<div class="text-sm text-gray-400">Restart all MT5 connection services</div>
+						</button>
+						<button class="p-6 bg-gradient-to-br from-purple-900 to-purple-950 border border-purple-800 rounded-xl hover:from-purple-800 hover:to-purple-900 transition-all text-left">
+							<div class="text-lg font-bold text-purple-400 mb-2">🗑️ Clear Cache</div>
+							<div class="text-sm text-gray-400">Clear system cache and temporary files</div>
+						</button>
+						<button class="p-6 bg-gradient-to-br from-green-900 to-green-950 border border-green-800 rounded-xl hover:from-green-800 hover:to-green-900 transition-all text-left">
+							<div class="text-lg font-bold text-green-400 mb-2">💾 Database Backup</div>
+							<div class="text-sm text-gray-400">Create manual database backup</div>
+						</button>
+						<button class="p-6 bg-gradient-to-br from-red-900 to-red-950 border border-red-800 rounded-xl hover:from-red-800 hover:to-red-900 transition-all text-left">
+							<div class="text-lg font-bold text-red-400 mb-2">🛑 Emergency Stop</div>
+							<div class="text-sm text-gray-400">Stop all trading bots immediately</div>
+						</button>
+					</div>
+				</div>
+			{/if}
+		</main>
+	{/if}
+</div>

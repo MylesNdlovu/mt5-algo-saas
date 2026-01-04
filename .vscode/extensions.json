@@ -1,0 +1,14 @@
+{
+	"recommendations": [
+		"svelte.svelte-vscode",
+		"prisma.prisma",
+		"bradlc.vscode-tailwindcss",
+		"dbaeumer.vscode-eslint",
+		"esbenp.prettier-vscode",
+		"ms-dotnettools.csharp",
+		"ms-dotnettools.csdevkit",
+		"usernamehw.errorlens",
+		"christian-kohler.path-intellisense",
+		"PKief.material-icon-theme"
+	]
+}
