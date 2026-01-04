@@ -92,12 +92,12 @@ let mailgunService: MailgunService | null = null;
 
 export function getMailgunService(): MailgunService {
 	if (!mailgunService) {
-		const apiKey = process.env.MAILGUN_API_KEY || '';
-		const domain = process.env.MAILGUN_DOMAIN || '';
+		const apiKey = process.env.MAILGUN_API_KEY || 'test-key';
+		const domain = process.env.MAILGUN_DOMAIN || 'test.com';
 		const from = process.env.MAILGUN_FROM_EMAIL || 'SCALPERIUM <noreply@scalperium.com>';
 
-		if (!apiKey || !domain) {
-			throw new Error('Mailgun configuration missing. Set MAILGUN_API_KEY and MAILGUN_DOMAIN in .env');
+		if (apiKey === 'test-key' || domain === 'test.com') {
+			console.warn('⚠️  Mailgun not configured - emails will be logged only');
 		}
 
 		mailgunService = new MailgunService({ apiKey, domain, from });

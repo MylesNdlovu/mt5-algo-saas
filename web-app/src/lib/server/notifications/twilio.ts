@@ -92,12 +92,12 @@ let twilioService: TwilioService | null = null;
 
 export function getTwilioService(): TwilioService {
 	if (!twilioService) {
-		const accountSid = process.env.TWILIO_ACCOUNT_SID || '';
-		const authToken = process.env.TWILIO_AUTH_TOKEN || '';
-		const fromNumber = process.env.TWILIO_FROM_NUMBER || '';
+		const accountSid = process.env.TWILIO_ACCOUNT_SID || 'test';
+		const authToken = process.env.TWILIO_AUTH_TOKEN || 'test';
+		const fromNumber = process.env.TWILIO_FROM_NUMBER || '+1234567890';
 
-		if (!accountSid || !authToken || !fromNumber) {
-			throw new Error('Twilio configuration missing. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER in .env');
+		if (accountSid === 'test' || authToken === 'test') {
+			console.warn('⚠️  Twilio not configured - SMS will be logged only');
 		}
 
 		twilioService = new TwilioService({ accountSid, authToken, fromNumber });
