@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	
+	import Navigation from '$lib/components/Navigation.svelte';
+	import type { PageData } from './$types';
+
+	export let data: PageData;
+
 	interface Automation {
 		id: string;
 		name: string;
@@ -110,25 +114,9 @@
 	<title>My Automations - SCALPERIUM</title>
 </svelte:head>
 
-<div class="min-h-screen bg-black">
-	<!-- Header -->
-	<header class="bg-gradient-to-br from-gray-900 to-black border-b border-gray-800 shadow-2xl sticky top-0 z-40">
-		<div class="max-w-7xl mx-auto px-6 py-4">
-			<div class="flex items-center justify-between">
-				<div class="flex items-center gap-4">
-					<button on:click={() => goto('/dashboard')} class="text-gray-400 hover:text-white">
-						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-						</svg>
-					</button>
-					<h1 class="text-2xl font-bold" style="color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); font-family: 'Orbitron', sans-serif;">
-						MY AUTOMATIONS
-					</h1>
-				</div>
-			</div>
-		</div>
-	</header>
+<Navigation user={data.user} />
 
+<div class="min-h-screen bg-black">
 	<main class="max-w-7xl mx-auto px-6 py-8">
 		{#if loading}
 			<div class="flex items-center justify-center h-64">

@@ -8,23 +8,15 @@ import {
 	deleteAutomation,
 	getAutomationStats
 } from '$lib/server/automationStorage';
+import { getSessionUser, isAdmin, type SessionUser } from '$lib/server/auth';
 
-// Helper function to check admin access (mock auth)
-function checkAdminAccess(event: any) {
-	const sessionCookie = event.cookies.get('user_session');
-	if (!sessionCookie) {
-		throw new Error('Not authenticated');
+// Helper function to check admin access
+function checkAdminAccess(event: any): SessionUser {
+	const sessionUser = getSessionUser(event.cookies);
+	if (!sessionUser || !isAdmin(sessionUser)) {
+		throw new Error('Admin access required');
 	}
-	
-	try {
-		const user = JSON.parse(sessionCookie);
-		if (user.role !== 'admin') {
-			throw new Error('Not authorized - admin access required');
-		}
-		return user;
-	} catch (e) {
-		throw new Error('Invalid session');
-	}
+	return sessionUser;
 }
 
 // GET - List all automations

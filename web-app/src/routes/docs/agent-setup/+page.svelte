@@ -2,6 +2,9 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import Navigation from '$lib/components/Navigation.svelte';
+	import type { PageData } from './$types';
+
+	export let data: PageData;
 
 	let activeTab = 'download';
 	let showApiKey = false;
@@ -37,7 +40,7 @@
 	<title>Agent Setup - SCALPERIUM</title>
 </svelte:head>
 
-<Navigation />
+<Navigation user={data.user} />
 
 <div class="min-h-screen bg-black text-white p-8">
 	<div class="max-w-5xl mx-auto">

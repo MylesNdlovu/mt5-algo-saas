@@ -5,10 +5,10 @@
 <div class="min-h-screen flex items-center justify-center bg-black py-8 sm:py-12">
 	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10 w-full">
 		<!-- Hero Section -->
-		<div class="mb-8 sm:mb-12">
-		<div class="mb-4 sm:mb-6">
-			<img src="/logo.png" alt="SCALPERIUM" class="w-80 h-80 sm:w-96 sm:h-96 lg:w-[28rem] lg:h-[28rem] mx-auto mb-3" />
-		<h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold mb-2 px-2 transition-all duration-300" 
+		<div class="mb-6 sm:mb-12">
+		<div class="mb-3 sm:mb-6">
+			<img src="/logo.png" alt="SCALPERIUM" class="w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 mx-auto mb-2" />
+		<h1 class="text-2xl sm:text-4xl lg:text-5xl font-bold mb-2 px-2 transition-all duration-300"
 			style="font-family: 'Orbitron', sans-serif; color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); letter-spacing: 0.15em; font-weight: 900; text-transform: uppercase;">
 			SCALPERIUM
 		</h1>
@@ -61,25 +61,13 @@
 					<p class="text-gray-300 mb-4 sm:mb-6 text-sm sm:text-base">Monitor trades and control your gold scalper:</p>
 					<button
 						on:click={() => goto('/login')}
-						class="w-full bg-gradient-to-r from-red-500 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-xl font-bold hover:from-red-400 hover:to-red-600 transition-all duration-300 mb-3 sm:mb-4 shadow-lg shadow-red-500/50 hover:shadow-red-500/70 hover:scale-105 active:scale-95 text-sm sm:text-base"
+						class="w-full bg-gradient-to-r from-red-500 to-red-700 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-xl font-bold hover:from-red-400 hover:to-red-600 transition-all duration-300 shadow-lg shadow-red-500/50 hover:shadow-red-500/70 hover:scale-105 active:scale-95 text-sm sm:text-base"
 					>
 						<span class="flex items-center justify-center">
 							<svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
 							</svg>
-							Sign In
-						</span>
-					</button>
-					<button
-						on:click={() => goto('/admin')}
-						class="w-full bg-gray-700/50 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-xl font-semibold hover:bg-gray-600/50 transition-all duration-300 border border-gray-600/50 hover:border-gray-500 hover:scale-105 active:scale-95 shadow-lg text-sm sm:text-base"
-					>
-						<span class="flex items-center justify-center">
-							<svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-							</svg>
-							System Control
+							Login
 						</span>
 					</button>
 				</div>

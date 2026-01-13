@@ -2,11 +2,22 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import LeaderboardTable from '$lib/components/LeaderboardTable.svelte';
+	import type { PageData } from './$types';
+
+	export let data: PageData;
+
+	// Role checks
+	$: isAdmin = data.user?.role === 'SUPER_ADMIN' || data.user?.role === 'ADMIN';
+	$: isIB = data.user?.role === 'IB';
 
 	let accountData: any = null;
 	let loading = true;
 	let error = '';
 	let pollInterval: any;
+
+	// Multi-Account Trading Management
+	let mt5Accounts: any[] = [];
+	let loadingAccounts = false;
 	
 	// Filter states
 	let tradeFilter: 'all' | 'open' | 'closed' = 'all';
@@ -19,15 +30,11 @@
 	let leaderboardPeriod: 'daily' | 'weekly' | 'monthly' = 'daily';
 	let botStatus: 'active' | 'paused' | 'stopped' = 'active';
 	let safetyMode: 'green' | 'orange' | 'red' = 'green';
-	let maxLotSize = 0.03; // Adjustable max lot size (capped at 0.03 = $15 max loss)
-	let maxLoss = 5; // Max loss in $ - proportional to lot size
+	let maxLotSize = 0.01; // Adjustable max lot size (0.01-0.05 range)
+	let maxLoss = 5; // Max loss in $ - user adjustable ($5-$10 range)
 	let winningStreak = 0; // Track consecutive winning trades
 	let sessionStartTime = Date.now();
 	let sessionDuration = '00:00:00';
-	
-	// Auto-calculate max loss proportionally to lot size
-	// 0.01 lot = $5, 0.02 lot = $10, 0.03 lot = $15, etc.
-	$: maxLoss = Math.round((maxLotSize / 0.01) * 5);
 	
 	// Lot size color indicator based on value
 	function getLotSizeColor(lotSize: number): string {
@@ -41,11 +48,11 @@
 		const recentTrades = accountData.closedTrades.slice(-5); // Last 5 trades
 		const allWinning = recentTrades.length >= 3 && recentTrades.every((t: any) => t.profit > 0);
 		winningStreak = allWinning ? recentTrades.length : 0;
-		
-		// Increase lot size by 0.01 for each 3 consecutive wins (capped at 0.03 max)
-		if (winningStreak >= 3 && maxLotSize < 0.03) {
+
+		// Increase lot size by 0.01 for each 3 consecutive wins (capped at 0.05 max)
+		if (winningStreak >= 3 && maxLotSize < 0.05) {
 			const increase = Math.floor(winningStreak / 3) * 0.01;
-			maxLotSize = Math.min(0.03, maxLotSize + increase);
+			maxLotSize = Math.min(0.05, maxLotSize + increase);
 		}
 	}
 	
@@ -94,13 +101,147 @@
 		window.URL.revokeObjectURL(url);
 	}
 	
-	// Calculate max lot size based on equity ($500 = 0.01, $1000 = 0.02, etc.)
-	$: if (accountData?.account?.equity) {
-		const equity = accountData.account.equity;
-		if (equity >= 10000) {
-			maxLotSize = 0.2; // $10k+ cap at 0.2
-		} else {
-			maxLotSize = Math.min(0.2, Math.max(0.01, (equity / 10000)));
+	// Note: Lot size is now manually controlled by user (0.01-0.05 range)
+	// Removed auto-calculation based on equity for better user control
+
+	// Save bot settings and sync with C# agent
+	async function saveBotSettings() {
+		try {
+			const response = await fetch('/api/user/bot-settings', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					maxLotSize,
+					maxLoss,
+					safetyMode
+				})
+			});
+
+			if (response.ok) {
+				alert('✅ Settings saved and synced with agent!');
+				showSettings = false;
+			} else {
+				alert('❌ Failed to save settings');
+			}
+		} catch (error) {
+			console.error('Error saving settings:', error);
+			alert('❌ Error saving settings');
+		}
+	}
+
+	// Load MT5 accounts for multi-account trading
+	async function loadMT5Accounts() {
+		loadingAccounts = true;
+		try {
+			const response = await fetch('/api/user/mt5-accounts');
+			if (response.ok) {
+				const data = await response.json();
+				mt5Accounts = data.accounts || [];
+			} else {
+				console.error('Failed to load MT5 accounts');
+			}
+		} catch (error) {
+			console.error('Error loading MT5 accounts:', error);
+		} finally {
+			loadingAccounts = false;
+		}
+	}
+
+	// Toggle account selection for trading
+	async function toggleAccount(accountId: string) {
+		try {
+			const response = await fetch(`/api/user/mt5-accounts/${accountId}/toggle`, {
+				method: 'PATCH'
+			});
+
+			if (response.ok) {
+				const data = await response.json();
+				// Update local state
+				mt5Accounts = mt5Accounts.map(acc =>
+					acc.id === accountId
+						? { ...acc, isEnabledForTrading: !acc.isEnabledForTrading }
+						: acc
+				);
+			} else {
+				const error = await response.json();
+				alert(error.error || 'Failed to toggle account');
+			}
+		} catch (error) {
+			console.error('Error toggling account:', error);
+			alert('Failed to toggle account selection');
+		}
+	}
+
+	// Load MT5 accounts when settings modal opens
+	$: if (showSettings && mt5Accounts.length === 0) {
+		loadMT5Accounts();
+	}
+
+	// Multi-Account EA Control
+	async function startAlgo() {
+		try {
+			const response = await fetch('/api/user/ea/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ command: 'start_ea' })
+			});
+
+			const data = await response.json();
+
+			if (data.success) {
+				botStatus = 'active';
+				sessionStartTime = Date.now();
+				alert(`✅ Algo started on ${data.successfulAccounts} account(s)`);
+			} else {
+				alert(`⚠️ ${data.message}\n\nPlease check that:\n- At least one account is enabled in Settings\n- Your agent is online and connected`);
+			}
+		} catch (error) {
+			console.error('Error starting algo:', error);
+			alert('❌ Failed to start algo. Please check your connection.');
+		}
+	}
+
+	async function stopAlgo() {
+		try {
+			const response = await fetch('/api/user/ea/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ command: 'stop_ea' })
+			});
+
+			const data = await response.json();
+
+			if (data.success) {
+				botStatus = 'stopped';
+				alert(`✅ Algo stopped on ${data.successfulAccounts} account(s)`);
+			} else {
+				alert(`⚠️ ${data.message}`);
+			}
+		} catch (error) {
+			console.error('Error stopping algo:', error);
+			alert('❌ Failed to stop algo');
+		}
+	}
+
+	async function pauseAlgo() {
+		try {
+			const response = await fetch('/api/user/ea/command', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ command: 'pause_ea' })
+			});
+
+			const data = await response.json();
+
+			if (data.success) {
+				botStatus = 'paused';
+				alert(`⏸️ Algo paused on ${data.successfulAccounts} account(s)`);
+			} else {
+				alert(`⚠️ ${data.message}`);
+			}
+		} catch (error) {
+			console.error('Error pausing algo:', error);
+			alert('❌ Failed to pause algo');
 		}
 	}
 
@@ -231,14 +372,13 @@
 
 				<!-- Bot Controls & Safety System -->
 				{#if accountData}
-					<div class="flex items-center gap-2 sm:gap-4">
-						<!-- Traffic Light Safety Indicator -->
-						<div class="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-3 bg-gray-900 rounded-xl border-2 border-gray-700 shadow-lg">
+					<div class="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-4">
+						<!-- Traffic Light Safety Indicator (Read-Only) -->
+						<div class="flex items-center gap-2 px-3 py-2 bg-gray-900 rounded-xl border-2 border-gray-700 shadow-lg">
 							<div class="flex gap-2">
 								<!-- Red Light -->
-								<button
-									on:click={() => { safetyMode = 'red'; botStatus = 'stopped'; }}
-									class="w-6 h-6 sm:w-7 sm:h-7 rounded-full transition-all border-2"
+								<div
+									class="w-5 h-5 sm:w-6 sm:h-6 rounded-full transition-all border-2 cursor-not-allowed"
 									class:bg-red-600={safetyMode === 'red'}
 									class:border-red-400={safetyMode === 'red'}
 									class:shadow-lg={safetyMode === 'red'}
@@ -246,42 +386,41 @@
 									class:bg-red-950={safetyMode !== 'red'}
 									class:border-red-900={safetyMode !== 'red'}
 									class:opacity-40={safetyMode !== 'red'}
-									title="Stop - Bot disabled"
-								></button>
-								<!-- Orange Light -->
-								<button
-									on:click={() => { safetyMode = 'orange'; botStatus = 'paused'; }}
-									class="w-6 h-6 sm:w-7 sm:h-7 rounded-full transition-all border-2"
-									class:bg-orange-500={safetyMode === 'orange'}
-									class:border-red-500={safetyMode === 'orange'}
+									title="Unsafe - Auto-synced from MT5"
+								></div>
+								<!-- Amber Light -->
+								<div
+									class="w-5 h-5 sm:w-6 sm:h-6 rounded-full transition-all border-2 cursor-not-allowed"
+									class:bg-amber-500={safetyMode === 'orange'}
+									class:border-amber-400={safetyMode === 'orange'}
 									class:shadow-lg={safetyMode === 'orange'}
-									class:shadow-red-500={safetyMode === 'orange'}
-									class:bg-gray-950={safetyMode !== 'orange'}
-									class:border-gray-900={safetyMode !== 'orange'}
-									class:opacity-40={safetyMode !== 'orange'}
-									title="Caution - Close only mode"
-								></button>
+									class:shadow-amber-500={safetyMode === 'orange'}
+									class:bg-amber-950={safetyMode !== 'orange'}
+									class:border-amber-900={safetyMode !== 'orange'}
+									class:opacity-30={safetyMode !== 'orange'}
+									title="Caution - Auto-synced from MT5"
+								></div>
 								<!-- Green Light -->
-								<button
-									on:click={() => { safetyMode = 'green'; }}
-									class="w-6 h-6 sm:w-7 sm:h-7 rounded-full transition-all border-2"
+								<div
+									class="w-5 h-5 sm:w-6 sm:h-6 rounded-full transition-all border-2 cursor-not-allowed"
 									class:bg-green-500={safetyMode === 'green'}
 									class:border-green-300={safetyMode === 'green'}
 									class:shadow-lg={safetyMode === 'green'}
 									class:shadow-green-400={safetyMode === 'green'}
 									class:bg-green-950={safetyMode !== 'green'}
 									class:border-green-900={safetyMode !== 'green'}
-									class:opacity-40={safetyMode !== 'green'}
-									title="Safe - Bot enabled"
-								></button>
+									class:opacity-30={safetyMode !== 'green'}
+									title="Safe - Auto-synced from MT5"
+								></div>
 							</div>
+							<span class="text-xs text-gray-500 hidden sm:inline">MT5 Sync</span>
 						</div>
 						
 						<!-- Play/Pause Controls (PROMINENT) -->
 						{#if safetyMode === 'green'}
 							{#if botStatus === 'active'}
 								<button
-									on:click={() => botStatus = 'paused'}
+									on:click={pauseAlgo}
 									class="relative px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-br from-red-500 to-red-700 hover:from-red-400 hover:to-red-600 rounded-xl shadow-lg shadow-red-500/50 transition-all transform hover:scale-105 border-2 border-red-400"
 									title="Pause Bot"
 								>
@@ -297,7 +436,7 @@
 								</button>
 							{:else}
 								<button
-									on:click={() => botStatus = 'active'}
+									on:click={startAlgo}
 									class="relative px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 rounded-xl shadow-lg shadow-green-500/50 transition-all transform hover:scale-105 border-2 border-green-400 animate-pulse"
 									title="Start Bot"
 								>
@@ -459,48 +598,54 @@
 						</svg>
 						<span class="text-gray-300">Change Account</span>
 					</a>
-					
-				<button on:click={loadAccountData} class="w-full flex items-center gap-3 p-3 mb-2 hover:bg-gray-800 rounded-lg transition-colors text-left">
-					<svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.5));">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-					</svg>
-					<span class="text-gray-300">Refresh Data</span>
-				</button>
+			<button on:click={loadAccountData} class="w-full flex items-center gap-3 p-3 mb-2 hover:bg-gray-800 rounded-lg transition-colors text-left">
+				<svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.5));">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+				</svg>
+				<span class="text-gray-300">Refresh Data</span>
+			</button>
+
+			<!-- Admin & Super Admin Only -->
+			{#if isAdmin}
+			<a href="/admin" class="flex items-center gap-3 p-3 mb-2 hover:bg-gray-800 rounded-lg transition-colors">
+				<svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+				</svg>
+				<span class="text-gray-300">⚙️ Admin Panel</span>
+			</a>
+
+			<a href="/agents" class="flex items-center gap-3 p-3 mb-2 hover:bg-gray-800 rounded-lg transition-colors">
+				<svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+				</svg>
+				<span class="text-gray-300">🤖 Agent Control</span>
+			</a>
+
+			<a href="/docs/agent-setup" class="flex items-center gap-3 p-3 mb-2 hover:bg-gray-800 rounded-lg transition-colors">
+				<svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+				</svg>
+				<span class="text-gray-300">📚 Setup Guide</span>
+			</a>
+
+			<a href="/ib-partners" class="flex items-center gap-3 p-3 mb-2 hover:bg-gray-800 rounded-lg transition-colors">
+				<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+				</svg>
+				<span class="text-gray-300">🤝 IB Partners</span>
+			</a>
+			{/if}
+
+			<!-- Leaderboard - Admin and IB only -->
+			{#if isAdmin || isIB}
+			<a href="/leaderboard" class="flex items-center gap-3 p-3 mb-2 hover:bg-gray-800 rounded-lg transition-colors">
+				<svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+				</svg>
+				<span class="text-gray-300">🏆 Leaderboard</span>
+			</a>
+			{/if}
 				
-				<a href="/admin" class="flex items-center gap-3 p-3 mb-2 hover:bg-gray-800 rounded-lg transition-colors">
-					<svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-					</svg>
-					<span class="text-gray-300">Admin Panel</span>
-				</a>
-				
-				<a href="/agents" class="flex items-center gap-3 p-3 mb-2 hover:bg-gray-800 rounded-lg transition-colors">
-					<svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-					</svg>
-					<span class="text-gray-300">🤖 Agent Control</span>
-				</a>
-				
-				<a href="/docs/agent-setup" class="flex items-center gap-3 p-3 mb-2 hover:bg-gray-800 rounded-lg transition-colors">
-					<svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-					</svg>
-					<span class="text-gray-300">📚 Setup Guide</span>
-				</a>
-				
-				<a href="/leaderboard" class="flex items-center gap-3 p-3 mb-2 hover:bg-gray-800 rounded-lg transition-colors">
-					<svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-					</svg>
-					<span class="text-gray-300">🏆 Leaderboard</span>
-				</a>
-				
-				<a href="/ib-partners" class="flex items-center gap-3 p-3 mb-2 hover:bg-gray-800 rounded-lg transition-colors">
-					<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-					</svg>
-					<span class="text-gray-300">🤝 IB Partners</span>
-				</a>
 				
 				<div class="border-t border-gray-800 my-4"></div>					<button on:click={handleLogout} class="w-full flex items-center gap-3 p-3 hover:bg-red-900/20 border border-red-500/30 rounded-lg transition-colors text-left">
 						<svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -932,41 +1077,46 @@
 
 <!-- Settings Modal -->
 {#if showSettings}
-	<div 
-		class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+	<div
+		class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
 		on:click={() => showSettings = false}
 		on:keydown={(e) => e.key === 'Escape' && (showSettings = false)}
 		role="button"
 		tabindex="0"
 	>
-		<div 
-			class="bg-gradient-to-br from-gray-900 to-black rounded-2xl p-6 border-2 border-gray-800 max-w-md w-full shadow-2xl"
+		<div
+			class="bg-gradient-to-br from-gray-900 to-black rounded-2xl border-2 border-gray-800 max-w-md w-full shadow-2xl my-8 max-h-[90vh] flex flex-col"
 			on:click|stopPropagation
 			role="dialog"
 			tabindex="-1"
 		>
-			<div class="flex items-start justify-between mb-6">
+			<!-- Header (Fixed) -->
+			<div class="flex items-start justify-between p-6 pb-4 border-b border-gray-800 flex-shrink-0">
 				<h3 class="text-2xl font-bold" style="color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); font-family: 'Orbitron', sans-serif;">Settings</h3>
-				<button 
+				<button
 					on:click={() => showSettings = false}
-					class="text-gray-400 hover:text-white transition-colors text-2xl"
+					class="text-gray-400 hover:text-white transition-colors text-2xl leading-none"
 				>
 					×
 				</button>
 			</div>
 
-			<div class="space-y-6">
-				<!-- Traffic Light Safety System -->
+			<!-- Scrollable Content -->
+			<div class="space-y-6 p-6 overflow-y-auto flex-1">
+				<!-- Traffic Light Safety System (Read-Only) -->
 				<div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
-					<div class="text-sm font-medium text-gray-300 mb-3">Safety Mode</div>
+					<div class="flex items-center justify-between mb-3">
+						<div class="text-sm font-medium text-gray-300">Safety Mode</div>
+						<div class="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">Auto MT5</div>
+					</div>
 					<div class="flex items-center justify-around">
-						<button
-							on:click={() => { safetyMode = 'red'; botStatus = 'stopped'; }}
-							class="flex flex-col items-center gap-2 p-3 rounded-lg transition-all"
+						<div
+							class="flex flex-col items-center gap-2 p-2 rounded-lg transition-all cursor-not-allowed"
 							class:bg-red-900={safetyMode === 'red'}
+							class:bg-opacity-50={safetyMode === 'red'}
 						>
-							<div 
-								class="w-12 h-12 rounded-full transition-all"
+							<div
+								class="w-10 h-10 rounded-full transition-all"
 								class:bg-red-600={safetyMode === 'red'}
 								class:shadow-lg={safetyMode === 'red'}
 								class:shadow-red-500={safetyMode === 'red'}
@@ -974,41 +1124,39 @@
 								class:opacity-30={safetyMode !== 'red'}
 							></div>
 							<span class="text-xs text-gray-400">STOP</span>
-							<span class="text-xs text-gray-500">Bot Disabled</span>
-						</button>
-						
-					
-					<button
-						on:click={() => { safetyMode = 'orange'; botStatus = 'paused'; }}
-						class="flex flex-col items-center gap-2 p-3 rounded-lg transition-all"
-						class:bg-gray-800={safetyMode === 'orange'}
+						</div>
+
+					<div
+						class="flex flex-col items-center gap-2 p-2 rounded-lg transition-all cursor-not-allowed"
+						class:bg-amber-900={safetyMode === 'orange'}
+						class:bg-opacity-50={safetyMode === 'orange'}
 					>
-						<div 
-							class="w-12 h-12 rounded-full transition-all"
-							class:bg-orange-500={safetyMode === 'orange'}
+						<div
+							class="w-10 h-10 rounded-full transition-all"
+							class:bg-amber-500={safetyMode === 'orange'}
 							class:shadow-lg={safetyMode === 'orange'}
-							class:shadow-red-500={safetyMode === 'orange'}
-							class:bg-gray-900={safetyMode !== 'orange'}
+							class:shadow-amber-500={safetyMode === 'orange'}
+							class:bg-amber-950={safetyMode !== 'orange'}
 							class:opacity-30={safetyMode !== 'orange'}
 						></div>
 						<span class="text-xs text-gray-400">CAUTION</span>
-						<span class="text-xs text-gray-500">Close Only</span>
-					</button>						<button
-							on:click={() => { safetyMode = 'green'; }}
-							class="flex flex-col items-center gap-2 p-3 rounded-lg transition-all"
-							class:bg-green-900={safetyMode === 'green'}
-						>
-							<div 
-								class="w-12 h-12 rounded-full transition-all"
-								class:bg-green-500={safetyMode === 'green'}
-								class:shadow-lg={safetyMode === 'green'}
-								class:shadow-green-500={safetyMode === 'green'}
-								class:bg-green-900={safetyMode !== 'green'}
-								class:opacity-30={safetyMode !== 'green'}
-							></div>
-							<span class="text-xs text-gray-400">SAFE</span>
-							<span class="text-xs text-gray-500">Bot Enabled</span>
-						</button>
+					</div>
+
+					<div
+						class="flex flex-col items-center gap-2 p-2 rounded-lg transition-all cursor-not-allowed"
+						class:bg-green-900={safetyMode === 'green'}
+						class:bg-opacity-50={safetyMode === 'green'}
+					>
+						<div
+							class="w-10 h-10 rounded-full transition-all"
+							class:bg-green-500={safetyMode === 'green'}
+							class:shadow-lg={safetyMode === 'green'}
+							class:shadow-green-500={safetyMode === 'green'}
+							class:bg-green-900={safetyMode !== 'green'}
+							class:opacity-30={safetyMode !== 'green'}
+						></div>
+						<span class="text-xs text-gray-400">SAFE</span>
+					</div>
 					</div>
 				</div>
 
@@ -1040,11 +1188,11 @@
 								type="number" 
 								bind:value={maxLotSize}
 								min="0.01" 
-								max="0.03" 
+								max="0.05" 
 								step="0.01"
 								class="w-full px-3 py-2 bg-gray-900 border rounded-lg text-white font-bold text-lg text-center transition-colors"
 								class:border-green-500={getLotSizeColor(maxLotSize) === 'green'}
-								class:border-orange-500={getLotSizeColor(maxLotSize) === 'orange'}
+								class:border-amber-500={getLotSizeColor(maxLotSize) === 'orange'}
 								class:border-gray-700={getLotSizeColor(maxLotSize) === 'default'}
 								style="{getLotSizeColor(maxLotSize) === 'green' ? 'color: #10b981; text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);' : getLotSizeColor(maxLotSize) === 'orange' ? 'color: #f97316; text-shadow: 0 0 10px rgba(249, 115, 22, 0.5);' : 'color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);'}"
 							>
@@ -1055,8 +1203,8 @@
 									<span class="text-gray-500">0.01-0.09</span>
 								</div>
 								<div class="flex items-center gap-1">
-									<div class="w-2 h-2 rounded-full bg-orange-500"></div>
-									<span class="text-orange-400">0.10-0.49</span>
+									<div class="w-2 h-2 rounded-full bg-amber-500"></div>
+									<span class="text-amber-400">0.10-0.49</span>
 								</div>
 								<div class="flex items-center gap-1">
 									<div class="w-2 h-2 rounded-full bg-green-500"></div>
@@ -1072,7 +1220,7 @@
 								</svg>
 								<span class="text-blue-400 font-medium">Auto-increases on winning streaks</span>
 							</div>
-							<div>Every 3 consecutive wins adds +0.01 lots (max 0.03)</div>
+							<div>Every 3 consecutive wins adds +0.01 lots (max 0.05)</div>
 						</div>
 					</div>
 				</div>
@@ -1099,15 +1247,116 @@
 				</label>
 				<input 
 					type="number" 
-					value={maxLoss}
-					readonly
-					class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white font-semibold cursor-not-allowed opacity-75"
+					bind:value={maxLoss}
+					min="5" max="10" step="1"
+					class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white font-semibold focus:border-red-500 focus:ring-2 focus:ring-red-500/50 border-red-700"
 				>
 				<p class="text-xs text-gray-500 mt-1">
-					📊 Scales with lot size: 0.01 lot = $5 | 0.02 lot = $10 | 0.03 lot = $15
+					📊 Scales with lot size: 0.01 lot = $5 | 0.02 lot = $10 | 0.05 lot = $25
 				</p>
 				<p class="text-xs text-red-400 mt-1">⚠️ Bot auto-closes all trades when total loss reaches this amount</p>
-			</div>				<!-- Refresh Rate -->
+			</div>
+
+			<!-- Multi-Account Trading Selector -->
+			<div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+				<div class="flex items-center justify-between mb-3">
+					<div>
+						<div class="text-sm font-medium text-gray-300">Trading Accounts</div>
+						<div class="text-xs text-gray-500 mt-1">Select which MT5 accounts to trade on (max 5)</div>
+					</div>
+					<button
+						on:click={loadMT5Accounts}
+						class="p-1 hover:bg-gray-800 rounded transition-colors"
+						title="Refresh accounts"
+					>
+						<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+						</svg>
+					</button>
+				</div>
+
+				{#if loadingAccounts}
+					<div class="flex items-center justify-center py-8">
+						<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
+					</div>
+				{:else if mt5Accounts.length === 0}
+					<div class="text-center py-6 text-gray-500 text-sm">
+						<svg class="w-12 h-12 mx-auto mb-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+						</svg>
+						<p>No MT5 accounts found</p>
+						<a href="/connect" class="text-red-400 hover:text-red-300 text-xs mt-2 inline-block">+ Add MT5 Account</a>
+					</div>
+				{:else}
+					<div class="space-y-2">
+						{#each mt5Accounts as account (account.id)}
+							<div
+								class="flex items-center justify-between p-3 rounded-lg transition-all"
+								class:bg-green-900={account.isEnabledForTrading}
+								class:bg-opacity-20={account.isEnabledForTrading}
+								class:border-green-700={account.isEnabledForTrading}
+								class:border={account.isEnabledForTrading}
+								class:bg-gray-800={!account.isEnabledForTrading}
+								class:bg-opacity-50={!account.isEnabledForTrading}
+							>
+								<div class="flex-1 min-w-0">
+									<div class="flex items-center gap-2">
+										<span class="text-sm font-medium text-white truncate">
+											{account.broker} - {account.accountNumber}
+										</span>
+										{#if account.isEnabledForTrading}
+											<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-green-900/50 text-green-400 rounded text-xs border border-green-700">
+												<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+													<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+												</svg>
+												Active
+											</span>
+										{/if}
+									</div>
+									<div class="flex items-center gap-3 mt-1 text-xs text-gray-400">
+										<span>{account.serverName}</span>
+										<span>•</span>
+										<span class:text-green-400={account.status === 'ACTIVE'} class:text-gray-500={account.status !== 'ACTIVE'}>
+											{account.status}
+										</span>
+										{#if account.balance > 0}
+											<span>•</span>
+											<span>${account.balance.toLocaleString()}</span>
+										{/if}
+									</div>
+								</div>
+								<label class="relative inline-flex items-center cursor-pointer ml-3">
+									<input
+										type="checkbox"
+										class="sr-only peer"
+										checked={account.isEnabledForTrading}
+										on:change={() => toggleAccount(account.id)}
+									>
+									<div class="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+								</label>
+							</div>
+						{/each}
+					</div>
+
+					<!-- Account Summary -->
+					<div class="mt-3 p-2 bg-gray-800 rounded text-xs">
+						<div class="flex items-center justify-between">
+							<span class="text-gray-400">Active Trading Accounts:</span>
+							<span class="text-white font-medium">{mt5Accounts.filter(a => a.isEnabledForTrading).length} / {mt5Accounts.length}</span>
+						</div>
+						{#if mt5Accounts.filter(a => a.isEnabledForTrading).length === 0}
+							<p class="text-amber-400 mt-2 flex items-center gap-1">
+								<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+									<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+								</svg>
+								No accounts selected - algo will not start
+							</p>
+						{/if}
+					</div>
+				{/if}
+			</div>
+
+			<!-- Refresh Rate -->
 				<div>
 					<label class="block text-sm text-gray-400 mb-2">Data Refresh Rate</label>
 					<select class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white">
@@ -1134,15 +1383,20 @@
 							<div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
 						</label>
 					</div>
-				</div>				<div class="flex gap-3 mt-6">
-					<button 
+				</div>
+			</div>
+
+			<!-- Footer (Fixed) -->
+			<div class="p-6 pt-4 border-t border-gray-800 flex-shrink-0">
+				<div class="flex gap-3">
+					<button
 						on:click={() => showSettings = false}
 						class="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-all"
 					>
 						Cancel
 					</button>
-					<button 
-						on:click={() => showSettings = false}
+					<button
+						on:click={saveBotSettings}
 						class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all"
 					>
 						Save Changes

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 
-	let name = '';
+	let firstName = '';
+	let lastName = '';
 	let email = '';
 	let phone = '';
 	let password = '';
@@ -13,7 +14,7 @@
 
 	async function handleRegister() {
 		// Validation
-		if (!name || !email || !password || !confirmPassword) {
+		if (!firstName || !lastName || !email || !password || !confirmPassword) {
 			errorMessage = 'Please fill in all required fields';
 			return;
 		}
@@ -46,7 +47,7 @@
 			const response = await fetch('/api/auth/register', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name, email, phone, password, ibCode })
+				body: JSON.stringify({ firstName, lastName, email, phone, password, ibCode })
 			});
 
 			const result = await response.json();
@@ -69,11 +70,11 @@
 	<div class="w-full max-w-md relative z-10">
 		<!-- Header -->
 		<div class="text-center mb-8">
-			<img src="/logo.png" alt="SCALPERIUM" class="w-44 h-44 sm:w-48 sm:h-48 mx-auto mb-2" />
-			<h1 class="text-4xl sm:text-5xl font-bold mb-2" style="font-family: 'Orbitron', sans-serif; color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); letter-spacing: 0.05em;">
+			<img src="/logo.png" alt="SCALPERIUM" class="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-2" />
+			<h1 class="text-2xl sm:text-4xl font-bold mb-2" style="font-family: 'Orbitron', sans-serif; color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); letter-spacing: 0.05em;">
 				Join SCALPERIUM
 			</h1>
-			<p class="text-gray-400">Start trading gold with precision</p>
+			<p class="text-sm sm:text-base text-gray-400">Start trading gold with precision</p>
 		</div>
 
 		<!-- Error Message -->
@@ -86,18 +87,33 @@
 		<!-- Registration Form -->
 		<div class="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-2xl p-6 sm:p-8 border border-gray-700/50">
 			<form on:submit|preventDefault={handleRegister} class="space-y-5">
-				<!-- Name -->
+				<!-- First Name -->
 				<div>
-					<label for="name" class="block text-sm font-medium text-gray-300 mb-2">
-						Full Name
+					<label for="firstName" class="block text-sm font-medium text-gray-300 mb-2">
+						First Name <span class="text-red-400">*</span>
 					</label>
 					<input
-						id="name"
+						id="firstName"
 						type="text"
-						bind:value={name}
-					placeholder="John Doe"
-					disabled={loading}
-					class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition disabled:opacity-50"
+						bind:value={firstName}
+						placeholder="John"
+						disabled={loading}
+						class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition disabled:opacity-50"
+					/>
+				</div>
+
+				<!-- Last Name -->
+				<div>
+					<label for="lastName" class="block text-sm font-medium text-gray-300 mb-2">
+						Last Name <span class="text-red-400">*</span>
+					</label>
+					<input
+						id="lastName"
+						type="text"
+						bind:value={lastName}
+						placeholder="Doe"
+						disabled={loading}
+						class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition disabled:opacity-50"
 					/>
 				</div>
 

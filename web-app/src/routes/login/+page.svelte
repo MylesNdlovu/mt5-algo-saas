@@ -9,11 +9,12 @@
 	let showDemo = false;
 
 	const demoAccounts = [
-		{ label: 'Trader Demo - Exness', email: 'trader@scalperium.com', password: 'Trader123!', broker: 'Exness' },
-		{ label: 'VIP Trader - PrimeXBT', email: 'vip@scalperium.com', password: 'VIP123!', broker: 'PrimeXBT' },
-		{ label: 'Demo Account - Exness', email: 'demo@scalperium.com', password: 'Demo123!', broker: 'Exness' },
-		{ label: 'Pro Trader - Exness', email: 'pro@scalperium.com', password: 'Pro123!', broker: 'Exness' },
-		{ label: '🔐 Admin Panel', email: 'admin@scalperium.com', password: 'Admin123!', broker: 'System' }
+		{ label: '👑 Super Admin', email: 'admin@scalperium.com', password: 'admin123', broker: 'System' },
+		{ label: '👔 IB Partner - Alpha Trade', email: 'contact@alphatrade.com', password: 'password123', broker: 'Exness' },
+		{ label: '👔 IB Partner - Gold King', email: 'info@goldking.io', password: 'password123', broker: 'Exness' },
+		{ label: '💰 Trader (Active) - James', email: 'james.wilson@email.com', password: 'password123', broker: 'Exness' },
+		{ label: '💰 VIP Trader - David', email: 'david.kim@email.com', password: 'password123', broker: 'Exness' },
+		{ label: '⚠️ Inactive Trader (7d)', email: 'sofia.martinez@email.com', password: 'password123', broker: 'Exness' }
 	];
 
 	function useDemoAccount(account: any) {
@@ -43,8 +44,10 @@
 
 			if (response.ok && result.success) {
 				// Redirect based on role
-				if (result.user.role === 'admin') {
+				if (result.user.role === 'SUPER_ADMIN' || result.user.role === 'ADMIN') {
 					goto('/admin');
+				} else if (result.user.role === 'IB') {
+					goto('/ib-dashboard');
 				} else {
 					goto('/dashboard');
 				}
@@ -63,11 +66,11 @@
 	<div class="w-full max-w-md relative z-10">
 		<!-- Header -->
 		<div class="text-center mb-8">
-			<img src="/logo.png" alt="SCALPERIUM" class="w-44 h-44 sm:w-48 sm:h-48 mx-auto mb-2" />
-			<h1 class="text-4xl sm:text-5xl font-bold mb-2" style="font-family: 'Orbitron', sans-serif; color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); letter-spacing: 0.05em;">
+			<img src="/logo.png" alt="SCALPERIUM" class="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-2" />
+			<h1 class="text-2xl sm:text-4xl font-bold mb-2" style="font-family: 'Orbitron', sans-serif; color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); letter-spacing: 0.05em;">
 				SCALPERIUM
 			</h1>
-			<p class="text-gray-400">Access your trading dashboard</p>
+			<p class="text-sm sm:text-base text-gray-400">Access your trading dashboard</p>
 		</div>
 
 		<!-- Error Message -->

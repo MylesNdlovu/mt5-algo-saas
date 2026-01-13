@@ -2,6 +2,9 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import Navigation from '$lib/components/Navigation.svelte';
+	import type { PageData } from './$types';
+
+	export let data: PageData;
 
 	// Agent status types
 	interface Agent {
@@ -196,7 +199,7 @@
 	});
 </script>
 
-<Navigation />
+<Navigation user={data.user} />
 
 <div class="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white p-8">
 	<!-- Header -->
@@ -503,8 +506,9 @@
 										<button
 											on:click={() => runAIOptimization(agent.id)}
 											class="px-3 py-1 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 rounded text-sm transition-all"
+											title="Analyze performance and view AI suggestions (indicators are synced from MT5)"
 										>
-											🤖 AI Optimize
+											🤖 AI Analysis
 										</button>
 									{/if}
 								{/if}
@@ -664,9 +668,12 @@
 	<div class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
 		<div class="bg-gray-900 border border-gray-700 rounded-lg max-w-4xl w-full">
 			<div class="p-6 border-b border-gray-700 flex items-center justify-between">
-				<h2 class="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
-					🤖 AI Indicator Optimization
-				</h2>
+				<div>
+					<h2 class="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
+						🤖 AI Performance Analysis
+					</h2>
+					<p class="text-sm text-gray-400 mt-1">View AI suggestions (Indicators auto-sync from MT5)</p>
+				</div>
 				<button
 					on:click={() => showAIOptimization = false}
 					class="text-gray-400 hover:text-white text-2xl"
@@ -677,7 +684,7 @@
 				{#if optimizationRunning}
 					<div class="text-center py-12">
 						<div class="text-xl mb-4">Analyzing trade history...</div>
-						<div class="text-gray-400">Training AI model on profitable patterns</div>
+						<div class="text-gray-400">Evaluating performance patterns for reference</div>
 						<div class="mt-6">
 							<div class="w-full bg-gray-800 rounded-full h-2">
 								<div class="bg-gradient-to-r from-pink-500 to-purple-500 h-2 rounded-full animate-pulse" style="width: 60%"></div>
@@ -687,7 +694,7 @@
 				{:else if optimizationResults}
 					<div>
 						<div class="mb-6">
-							<h3 class="text-lg font-bold mb-2">Optimization Results</h3>
+							<h3 class="text-lg font-bold mb-2">Performance Analysis Results</h3>
 							<div class="text-sm text-gray-400">
 								Analyzed {optimizationResults.tradesAnalyzed} trades
 							</div>
@@ -709,7 +716,7 @@
 							</div>
 
 							<div>
-								<h4 class="font-bold mb-3 text-green-400">Optimized Settings</h4>
+								<h4 class="font-bold mb-3 text-green-400">AI Suggested Settings (Reference Only)</h4>
 								<div class="bg-gradient-to-br from-green-900 to-blue-900 p-4 rounded space-y-2 text-sm">
 									<div>ATR Period: {optimizationResults.optimizedSettings.atrPeriod}</div>
 									<div>ATR Multiplier: {optimizationResults.optimizedSettings.atrMultiplier}</div>
@@ -738,18 +745,19 @@
 							</div>
 						</div>
 
-						<div class="flex gap-3">
-							<button
-								on:click={() => applyOptimizedSettings(selectedAgent.id, optimizationResults.optimizedSettings)}
-								class="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 rounded-lg font-bold transition-all"
-							>
-								✅ Apply Optimized Settings
-							</button>
+						<div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-4">
+							<p class="text-sm text-blue-400">
+								ℹ️ <strong>Note:</strong> Indicator settings are automatically synced from your MT5 custom indicator via the C# agent.
+								These AI suggestions are for reference only and cannot be manually applied.
+							</p>
+						</div>
+
+						<div class="flex justify-end">
 							<button
 								on:click={() => showAIOptimization = false}
 								class="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-all"
 							>
-								Cancel
+								Close
 							</button>
 						</div>
 					</div>

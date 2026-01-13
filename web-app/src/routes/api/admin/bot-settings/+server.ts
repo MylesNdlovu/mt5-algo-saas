@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { getSessionUser, isAdmin } from '$lib/server/auth';
 
 // This endpoint handles bot settings configuration
 // GET: Retrieve current settings from C# agent
@@ -11,13 +12,8 @@ const CSHARP_AGENT_API_KEY = process.env.CSHARP_AGENT_API_KEY || 'your-csharp-ag
 export const GET: RequestHandler = async ({ cookies }) => {
 	try {
 		// Verify admin authentication
-		const session = cookies.get('user_session');
-		if (!session) {
-			return json({ error: 'Unauthorized' }, { status: 401 });
-		}
-
-		const user = JSON.parse(session);
-		if (user.role !== 'admin') {
+		const sessionUser = getSessionUser(cookies);
+		if (!sessionUser || !isAdmin(sessionUser)) {
 			return json({ error: 'Admin access required' }, { status: 403 });
 		}
 
@@ -91,13 +87,8 @@ export const GET: RequestHandler = async ({ cookies }) => {
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {
 		// Verify admin authentication
-		const session = cookies.get('user_session');
-		if (!session) {
-			return json({ error: 'Unauthorized' }, { status: 401 });
-		}
-
-		const user = JSON.parse(session);
-		if (user.role !== 'admin') {
+		const sessionUser = getSessionUser(cookies);
+		if (!sessionUser || !isAdmin(sessionUser)) {
 			return json({ error: 'Admin access required' }, { status: 403 });
 		}
 
@@ -133,7 +124,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 				body: JSON.stringify({
 					...settings,
 					timestamp: new Date().toISOString(),
-					updatedBy: user.email
+					updatedBy: sessionUser.email
 				})
 			});
 

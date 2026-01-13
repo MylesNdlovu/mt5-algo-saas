@@ -9,7 +9,7 @@
 			icon: '⚠️'
 		},
 		ORANGE: {
-			color: 'bg-orange-500',
+			color: 'bg-amber-500',
 			text: 'CAUTION',
 			description: 'Market conditions require careful monitoring. Proceed with care.',
 			icon: '⚡'
@@ -42,18 +42,18 @@
 
 	<p class="text-gray-300 text-sm sm:text-base">{config.description}</p>
 
-	<div class="mt-4 sm:mt-6 pt-4 border-t border-gray-700">
-		<div class="flex justify-between text-xs sm:text-sm text-gray-400">
-			<div class="flex items-center space-x-2">
-				<div class="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-green-500"></div>
+	<div class="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-gray-700">
+		<div class="flex justify-between text-xs text-gray-400">
+			<div class="flex items-center gap-1.5">
+				<div class="w-2 h-2 rounded-full bg-green-500"></div>
 				<span>Safe</span>
 			</div>
-			<div class="flex items-center space-x-2">
-				<div class="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-orange-500"></div>
+			<div class="flex items-center gap-1.5">
+				<div class="w-2 h-2 rounded-full bg-amber-500"></div>
 				<span>Caution</span>
 			</div>
-			<div class="flex items-center space-x-2">
-				<div class="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-red-500"></div>
+			<div class="flex items-center gap-1.5">
+				<div class="w-2 h-2 rounded-full bg-red-500"></div>
 				<span>Unsafe</span>
 			</div>
 		</div>

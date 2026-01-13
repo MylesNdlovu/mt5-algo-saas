@@ -1,24 +1,23 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { PrismaClient } from '@prisma/client';
+import { getSessionUser, isIBPartner } from '$lib/server/auth';
 
 const prisma = new PrismaClient();
 
 export const GET: RequestHandler = async ({ cookies }) => {
 	try {
-		const sessionCookie = cookies.get('ib_session');
-		
-		if (!sessionCookie) {
-			return json({ error: 'Not authenticated' }, { status: 401 });
+		const sessionUser = getSessionUser(cookies);
+
+		if (!sessionUser || !isIBPartner(sessionUser)) {
+			return json({ error: 'IB Partner access required' }, { status: 403 });
 		}
-		
-		const session = JSON.parse(sessionCookie);
-		
+
 		// Get IB partner data
 		const ibPartner = await prisma.iBPartner.findUnique({
-			where: { id: session.userId }
+			where: { id: sessionUser.userId }
 		});
-		
+
 		if (!ibPartner || !ibPartner.isActive) {
 			return json({ error: 'Access denied' }, { status: 403 });
 		}

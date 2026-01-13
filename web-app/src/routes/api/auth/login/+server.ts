@@ -1,104 +1,144 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { PrismaClient } from '@prisma/client';
+import { verifyPassword, setSession, createUserSession } from '$lib/server/auth';
 
-// Mock user database - simple auth for demo
-const mockUsers = [
-	{
-		id: 1,
-		email: 'trader@scalperium.com',
-		password: 'Trader123!',
-		name: 'Trader Demo',
-		broker: 'Exness',
-		role: 'trader',
-		isActive: true
-	},
-	{
-		id: 2,
-		email: 'vip@scalperium.com',
-		password: 'VIP123!',
-		name: 'VIP Trader',
-		broker: 'PrimeXBT',
-		role: 'vip',
-		isActive: true
-	},
-	{
-		id: 3,
-		email: 'demo@scalperium.com',
-		password: 'Demo123!',
-		name: 'Demo Account',
-		broker: 'Exness',
-		role: 'trader',
-		isActive: true
-	},
-	{
-		id: 4,
-		email: 'pro@scalperium.com',
-		password: 'Pro123!',
-		name: 'Pro Trader',
-		broker: 'Exness',
-		role: 'trader',
-		isActive: true
-	},
-	{
-		id: 999,
-		email: 'admin@scalperium.com',
-		password: 'Admin123!',
-		name: 'System Admin',
-		broker: 'System',
-		role: 'admin',
-		isActive: true
-	}
-];
+const prisma = new PrismaClient();
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {
-		const { email, password, broker } = await request.json();
+		const { email, password } = await request.json();
 
-		console.log('Login attempt:', { email, broker });
+		console.log('[Auth] Login attempt:', { email });
 
 		// Validate input
 		if (!email || !password) {
 			return json({ success: false, error: 'Email and password are required' }, { status: 400 });
 		}
 
-		// Find user with simple password check (mock auth)
-		const user = mockUsers.find(
-			(u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-		);
-
-		console.log('User found:', user ? 'Yes' : 'No', user?.role);
-
-		if (!user || !user.isActive) {
-			return json({ success: false, error: 'Invalid credentials' }, { status: 401 });
-		}
-
-		// Set simple session cookie (mock auth)
-		cookies.set('user_session', JSON.stringify({
-			id: user.id,
-			email: user.email,
-			name: user.name,
-			broker: user.broker || broker,
-			role: user.role
-		}), {
-			path: '/',
-			httpOnly: true,
-			sameSite: 'strict',
-			secure: false, // Set to true in production
-			maxAge: 60 * 60 * 24 * 7 // 7 days
-		});
-
-		return json({
-			success: true,
-			user: {
-				id: user.id,
-				email: user.email,
-				name: user.name,
-				broker: user.broker || broker,
-				role: user.role
+		// Try to find user in User table first
+		const user = await prisma.user.findUnique({
+			where: { email: email.toLowerCase() },
+			include: {
+				ibPartner: {
+					select: {
+						id: true,
+						companyName: true
+					}
+				}
 			}
 		});
+
+		if (user) {
+			// User found in User table
+			if (!user.isActive) {
+				console.log('[Auth] User account inactive:', email);
+				return json({ success: false, error: 'Account is inactive' }, { status: 401 });
+			}
+
+			// Verify password
+			const isValidPassword = await verifyPassword(password, user.passwordHash);
+			if (!isValidPassword) {
+				console.log('[Auth] Invalid password for:', email);
+				return json({ success: false, error: 'Invalid credentials' }, { status: 401 });
+			}
+
+			// Create unified session
+			const sessionData = createUserSession({
+				id: user.id,
+				email: user.email,
+				firstName: user.firstName,
+				lastName: user.lastName,
+				role: user.role,
+				ibPartnerId: user.ibPartnerId
+			});
+
+			// Set the unified session cookie
+			setSession(cookies, sessionData);
+
+			// Update last login timestamp
+			await prisma.user.update({
+				where: { id: user.id },
+				data: { lastLoginAt: new Date() }
+			});
+
+			console.log('[Auth] User login successful:', {
+				userId: user.id,
+				role: user.role,
+				ibPartnerId: user.ibPartnerId
+			});
+
+			return json({
+				success: true,
+				user: {
+					id: user.id,
+					email: user.email,
+					name: `${user.firstName} ${user.lastName}`,
+					role: user.role,
+					ibPartnerId: user.ibPartnerId
+				}
+			});
+		}
+
+		// Try to find in IBPartner table
+		const ibPartner = await prisma.iBPartner.findUnique({
+			where: { email: email.toLowerCase() }
+		});
+
+		if (ibPartner) {
+			// IB Partner found
+			if (!ibPartner.isApproved) {
+				console.log('[Auth] IB account pending approval:', email);
+				return json({ success: false, error: 'Your account is pending approval' }, { status: 403 });
+			}
+
+			if (!ibPartner.isActive) {
+				console.log('[Auth] IB account deactivated:', email);
+				return json({ success: false, error: 'Your account has been deactivated' }, { status: 403 });
+			}
+
+			// Verify password
+			const isValidPassword = await verifyPassword(password, ibPartner.passwordHash);
+			if (!isValidPassword) {
+				console.log('[Auth] Invalid password for IB:', email);
+				return json({ success: false, error: 'Invalid credentials' }, { status: 401 });
+			}
+
+			// Create IB session with role 'IB'
+			const sessionData = {
+				userId: ibPartner.id,
+				email: ibPartner.email,
+				role: 'IB' as const,
+				ibPartnerId: ibPartner.id, // IB partner IS the IB
+				name: ibPartner.companyName
+			};
+
+			// Set the unified session cookie
+			setSession(cookies, sessionData);
+
+			console.log('[Auth] IB Partner login successful:', {
+				ibPartnerId: ibPartner.id,
+				companyName: ibPartner.companyName
+			});
+
+			return json({
+				success: true,
+				user: {
+					id: ibPartner.id,
+					email: ibPartner.email,
+					name: ibPartner.companyName,
+					role: 'IB',
+					ibPartnerId: ibPartner.id
+				}
+			});
+		}
+
+		// Neither found
+		console.log('[Auth] Account not found:', email);
+		return json({ success: false, error: 'Invalid credentials' }, { status: 401 });
+
 	} catch (error) {
-		console.error('Login error:', error);
+		console.error('[Auth] Login error:', error);
 		return json({ success: false, error: 'Login failed' }, { status: 500 });
 	}
 };

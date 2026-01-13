@@ -1,9 +1,14 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import prisma from '$lib/server/db';
+import { agentManager } from '$lib/server/agent-manager';
 
-// This will be connected to Prisma database
-// For now, mock data structure
-
+/**
+ * GET /api/agents
+ *
+ * Returns all agents with real-time WebSocket connection status merged with database info.
+ * Optimized to combine in-memory WebSocket state with persisted database data.
+ */
 export const GET: RequestHandler = async ({ cookies }) => {
 	// Check admin authentication
 	const session = cookies.get('session');
@@ -11,125 +16,129 @@ export const GET: RequestHandler = async ({ cookies }) => {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	// TODO: Replace with actual Prisma query
-	// const agents = await prisma.agent.findMany({
-	//   include: {
-	//     user: true,
-	//     eaDeployment: true,
-	//     masterAccount: true,
-	//     slaveAccounts: true
-	//   }
-	// });
-
-	// Mock data for now
-	const agents = [
-		{
-			id: 'agent-1',
-			machineId: 'WIN-DESKTOP-001',
-			status: 'online',
-			lastHeartbeat: new Date().toISOString(),
-			mt5Account: '12345678',
-			mt5Broker: 'Exness',
-			mt5Version: '5.0.3815',
-			userId: 'user-1',
-			userName: 'John Smith',
-			userEmail: 'john@example.com',
-			
-			eaLoaded: true,
-			eaRunning: true,
-			eaName: 'Gold Scalper Pro',
-			chartSymbol: 'XAUUSD',
-			chartTimeframe: 'M5',
-			
-			tradeCopierActive: false,
-			isMasterAccount: true,
-			masterAccountId: null,
-			slavesCount: 3,
-			
-			totalTrades: 245,
-			profitableTrades: 178,
-			losingTrades: 67,
-			totalProfit: 8450.50,
-			winRate: 72.7,
-			
-			indicatorSettings: {
-				atrPeriod: 14,
-				atrMultiplier: 2.0,
-				greenThreshold: 0.8,
-				orangeThreshold: 0.5,
-				redThreshold: 0.3
+	try {
+		// Get all agents from database
+		const dbAgents = await prisma.agent.findMany({
+			include: {
+				user: {
+					select: {
+						id: true,
+						firstName: true,
+						lastName: true,
+						email: true,
+					},
+				},
+				masterAgent: {
+					select: {
+						id: true,
+						machineId: true,
+					},
+				},
+				slaveAgents: {
+					select: {
+						id: true,
+					},
+				},
 			},
-			
-			aiOptimizationScore: 0.85,
-			lastOptimized: new Date(Date.now() - 86400000 * 3).toISOString()
-		},
-		{
-			id: 'agent-2',
-			machineId: 'WIN-VPS-002',
-			status: 'online',
-			lastHeartbeat: new Date().toISOString(),
-			mt5Account: '87654321',
-			mt5Broker: 'FTMO',
-			mt5Version: '5.0.3815',
-			userId: 'user-2',
-			userName: 'Sarah Johnson',
-			userEmail: 'sarah@example.com',
-			
-			eaLoaded: true,
-			eaRunning: false,
-			eaName: 'Gold Scalper Pro',
-			chartSymbol: 'XAUUSD',
-			chartTimeframe: 'M5',
-			
-			tradeCopierActive: true,
-			isMasterAccount: false,
-			masterAccountId: 'agent-1',
-			slavesCount: 0,
-			
-			totalTrades: 189,
-			profitableTrades: 134,
-			losingTrades: 55,
-			totalProfit: 5230.75,
-			winRate: 70.9,
-			
-			indicatorSettings: null,
-			aiOptimizationScore: 0,
-			lastOptimized: null
-		},
-		{
-			id: 'agent-3',
-			machineId: 'WIN-LAPTOP-003',
-			status: 'offline',
-			lastHeartbeat: new Date(Date.now() - 3600000).toISOString(),
-			mt5Account: '11223344',
-			mt5Broker: 'IC Markets',
-			mt5Version: '5.0.3700',
-			userId: null,
-			userName: null,
-			userEmail: null,
-			
-			eaLoaded: false,
-			eaRunning: false,
-			eaName: null,
-			chartSymbol: null,
-			chartTimeframe: null,
-			
-			tradeCopierActive: false,
-			isMasterAccount: false,
-			masterAccountId: null,
-			slavesCount: 0,
-			
-			totalTrades: 0,
-			profitableTrades: 0,
-			losingTrades: 0,
-			totalProfit: 0,
-			winRate: 0,
-			
-			indicatorSettings: null,
-			aiOptimizationScore: 0,
-			lastOptimized: null
-		}
-	];
+			orderBy: {
+				lastHeartbeat: 'desc',
+			},
+		});
 
-	return json({ agents });
+		// Get all connected agents from WebSocket server
+		const connectedAgents = agentManager.getAllAgents();
+		const connectedAgentIds = new Set(connectedAgents.map((a) => a.id));
+
+		// Merge database info with real-time WebSocket state
+		const agents = dbAgents.map((dbAgent) => {
+			const wsAgent = connectedAgents.find((a) => a.id === dbAgent.id);
+			const isConnected = connectedAgentIds.has(dbAgent.id);
+
+			return {
+				id: dbAgent.id,
+				machineId: dbAgent.machineId,
+				machineName: dbAgent.machineName,
+
+				// Use real-time status from WebSocket if connected
+				status: isConnected ? wsAgent?.status || 'online' : dbAgent.status,
+				lastHeartbeat: isConnected
+					? new Date(wsAgent?.lastHeartbeat || Date.now()).toISOString()
+					: dbAgent.lastHeartbeat?.toISOString() || null,
+
+				// MT5 Info
+				mt5Account: dbAgent.mt5AccountNumber,
+				mt5Broker: dbAgent.mt5Broker,
+				mt5ServerName: dbAgent.mt5ServerName,
+				mt5Version: dbAgent.mt5Version,
+
+				// User Info
+				userId: dbAgent.userId,
+				userName: dbAgent.user
+					? `${dbAgent.user.firstName} ${dbAgent.user.lastName}`
+					: null,
+				userEmail: dbAgent.user?.email || null,
+
+				// EA Status - use real-time from WebSocket if available
+				eaLoaded: isConnected
+					? wsAgent?.eaStatus?.loaded ?? dbAgent.eaLoaded
+					: dbAgent.eaLoaded,
+				eaRunning: isConnected
+					? wsAgent?.eaStatus?.running ?? dbAgent.eaRunning
+					: dbAgent.eaRunning,
+				eaName: isConnected
+					? wsAgent?.eaStatus?.name || dbAgent.eaName
+					: dbAgent.eaName,
+				chartSymbol: isConnected
+					? wsAgent?.eaStatus?.symbol || dbAgent.chartSymbol
+					: dbAgent.chartSymbol,
+				chartTimeframe: isConnected
+					? wsAgent?.eaStatus?.timeframe || dbAgent.chartTimeframe
+					: dbAgent.chartTimeframe,
+
+				// Trade Copier
+				tradeCopierActive: dbAgent.tradeCopierActive,
+				isMasterAccount: dbAgent.isMasterAccount,
+				masterAccountId: dbAgent.masterAgentId,
+				slavesCount: dbAgent.slaveAgents.length,
+
+				// Performance Stats
+				totalTrades: dbAgent.totalTrades,
+				profitableTrades: dbAgent.profitableTrades,
+				losingTrades: dbAgent.losingTrades,
+				totalProfit: dbAgent.totalProfit,
+				winRate: dbAgent.winRate,
+
+				// AI Optimization
+				indicatorSettings: dbAgent.indicatorSettings,
+				aiOptimizationScore: dbAgent.aiOptimizationScore,
+				lastOptimized: dbAgent.lastOptimizedAt?.toISOString() || null,
+
+				// Account Info from WebSocket (real-time)
+				accountInfo: isConnected ? wsAgent?.accountInfo : null,
+
+				// System Info
+				osVersion: dbAgent.osVersion,
+				agentVersion: dbAgent.agentVersion,
+				connectedAt: isConnected
+					? new Date(wsAgent?.connectedAt || 0).toISOString()
+					: dbAgent.connectedAt?.toISOString() || null,
+			};
+		});
+
+		// Also return connection statistics
+		const stats = agentManager.getStats();
+
+		return json({
+			agents,
+			stats: {
+				totalAgents: dbAgents.length,
+				connectedAgents: stats.totalConnected,
+				activeUsers: stats.totalUsers,
+				adminConnections: stats.adminConnections,
+			},
+		});
+	} catch (error) {
+		console.error('[API] Failed to get agents:', error);
+		return json({ error: 'Failed to retrieve agents' }, { status: 500 });
+	}
 };

@@ -5,7 +5,7 @@
 	export let data: PageData;
 </script>
 
-<Navigation />
+<Navigation user={data.user} />
 
 <div class="min-h-screen bg-black text-white p-8">
 	<h1 class="text-4xl font-bold mb-8">Admin Debug Info</h1>

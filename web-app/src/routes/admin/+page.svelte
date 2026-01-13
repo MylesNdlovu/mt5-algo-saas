@@ -6,7 +6,7 @@
   
   export let data: PageData;
   
-  let activeTab: 'overview' | 'automations' | 'users' | 'bots' | 'bot-settings' | 'trades' | 'leaderboard' | 'ib-partners' = 'overview';
+  let activeTab: 'overview' | 'automations' | 'users' | 'bots' | 'bot-settings' | 'trades' | 'ib-partners' = 'overview';
   let showMenu = false;
   
   // Bot Settings (Admin Only)
@@ -61,7 +61,8 @@
   let ibPartners: any[] = [];
   let selectedIBPartner: any = null;
   let showIBConfigModal = false;
-  
+  let ibOverallStats: any = null;
+
   // Stats
   let stats = {
     totalUsers: 247,
@@ -546,7 +547,8 @@
       const response = await fetch('/api/admin/ib-partners');
       if (response.ok) {
         const data = await response.json();
-        ibPartners = data.partners;
+        ibPartners = data.partners || [];
+        ibOverallStats = data.overallStats || null;
       }
     } catch (error) {
       console.error('Error loading IB partners:', error);
@@ -637,6 +639,7 @@
     loadAutomations();
     loadLeaderboard();
     loadBotSettings();
+    loadIBPartners();
   });
   
   function getTriggerLabel(trigger: TriggerType, count?: number): string {
@@ -678,7 +681,7 @@
   }
 </script>
 
-<Navigation />
+<Navigation user={data.user} />
 
 <div class="min-h-screen bg-black text-gray-300">
   <!-- Header with Menu -->
@@ -831,21 +834,6 @@
           <span>Recent Trades</span>
         </button>
         
-        <button
-          on:click={() => { activeTab = 'leaderboard'; showMenu = false; }}
-          class="w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left"
-          class:bg-red-500={activeTab === 'leaderboard'}
-          class:bg-opacity-20={activeTab === 'leaderboard'}
-          class:border={activeTab === 'leaderboard'}
-          class:border-red-500={activeTab === 'leaderboard'}
-          class:hover:bg-gray-800={activeTab !== 'leaderboard'}
-        >
-          <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-          </svg>
-          <span>🏆 Leaderboard</span>
-        </button>
-
         <!-- IB Partners Tab -->
         <button
           on:click={() => activeTab = 'ib-partners'}
@@ -1000,7 +988,49 @@
             </div>
           </div>
         </div>
-        
+
+        <!-- IB Partner Statistics -->
+        {#if ibOverallStats}
+        <div>
+          <h2 class="text-2xl font-bold mb-6" style="color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);">
+            🤝 IB Partner Performance
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="bg-gradient-to-br from-blue-900/30 to-black p-6 rounded-lg border border-blue-800/50">
+              <div class="text-sm text-gray-400 mb-2">Total IB Partners</div>
+              <div class="text-3xl font-bold mb-1 text-blue-400">
+                {ibOverallStats.totalIBPartners}
+              </div>
+              <div class="text-xs text-blue-300">{ibOverallStats.activeIBPartners} active</div>
+            </div>
+
+            <div class="bg-gradient-to-br from-blue-900/30 to-black p-6 rounded-lg border border-blue-800/50">
+              <div class="text-sm text-gray-400 mb-2">Traders Referred</div>
+              <div class="text-3xl font-bold mb-1 text-blue-400">
+                {ibOverallStats.totalTradersReferred}
+              </div>
+              <div class="text-xs text-green-400">{ibOverallStats.totalActiveTradersReferred} active</div>
+            </div>
+
+            <div class="bg-gradient-to-br from-blue-900/30 to-black p-6 rounded-lg border border-blue-800/50">
+              <div class="text-sm text-gray-400 mb-2">Commissions Paid</div>
+              <div class="text-3xl font-bold mb-1 text-blue-400">
+                ${ibOverallStats.totalCommissionsPaid.toLocaleString()}
+              </div>
+              <div class="text-xs text-gray-400">All time</div>
+            </div>
+
+            <div class="bg-gradient-to-br from-blue-900/30 to-black p-6 rounded-lg border border-blue-800/50">
+              <div class="text-sm text-gray-400 mb-2">IB Revenue</div>
+              <div class="text-3xl font-bold mb-1 text-blue-400">
+                ${ibOverallStats.estimatedMonthlyRevenue.toLocaleString()}
+              </div>
+              <div class="text-xs text-gray-400">Monthly from IBs</div>
+            </div>
+          </div>
+        </div>
+        {/if}
+
         <!-- User Breakdown -->
         <div>
           <h2 class="text-2xl font-bold mb-6" style="color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);">
@@ -2563,10 +2593,10 @@
                 Traders
               </th>
               <th class="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Status
+                Performance
               </th>
               <th class="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                White Label
+                Status
               </th>
               <th class="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                 Actions
@@ -2574,95 +2604,89 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-800">
-            <!-- Sample IB Partners (mock data) -->
-            <tr class="hover:bg-gray-800/50 transition-colors">
-              <td class="px-6 py-4">
-                <div class="text-sm font-medium text-white">ABC Trading Ltd</div>
-                <div class="text-xs text-gray-400">abc@trading.com</div>
-              </td>
-              <td class="px-6 py-4">
-                <div class="text-sm text-gray-300">John Smith</div>
-                <div class="text-xs text-gray-500">+1 555-1234</div>
-              </td>
-              <td class="px-6 py-4">
-                <code class="px-3 py-1 bg-blue-500/20 text-blue-400 rounded font-mono text-sm">
-                  IB2024ABC
-                </code>
-              </td>
-              <td class="px-6 py-4 text-sm text-gray-300">
-                247
-              </td>
-              <td class="px-6 py-4">
-                <span class="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-semibold">
-                  ✓ Active
-                </span>
-              </td>
-              <td class="px-6 py-4">
-                <div class="flex items-center gap-2">
-                  <div class="w-8 h-8 rounded bg-blue-500/20 border border-blue-500/50"></div>
-                  <div class="text-xs">
-                    <div class="text-gray-300">trading.pro</div>
-                    <div class="text-gray-500">Custom domain</div>
-                  </div>
-                </div>
-              </td>
-              <td class="px-6 py-4">
-                <div class="flex gap-2">
-                  <button
-                    class="px-3 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded text-xs"
-                  >
-                    ⚙️ Configure
-                  </button>
-                  <button
-                    class="px-3 py-1 bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 rounded text-xs"
-                  >
-                    ⏸️ Pause
-                  </button>
-                </div>
-              </td>
-            </tr>
-            
-            <!-- Pending IB Application -->
-            <tr class="hover:bg-gray-800/50 transition-colors">
-              <td class="px-6 py-4">
-                <div class="text-sm font-medium text-white">Global FX Partners</div>
-                <div class="text-xs text-gray-400">info@globalfx.com</div>
-              </td>
-              <td class="px-6 py-4">
-                <div class="text-sm text-gray-300">Sarah Johnson</div>
-                <div class="text-xs text-gray-500">+44 20-7123-4567</div>
-              </td>
-              <td class="px-6 py-4">
-                <code class="px-3 py-1 bg-gray-700 text-gray-400 rounded font-mono text-sm">
-                  IB2024GFX
-                </code>
-              </td>
-              <td class="px-6 py-4 text-sm text-gray-500">
-                -
-              </td>
-              <td class="px-6 py-4">
-                <span class="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-semibold">
-                  ⏳ Pending
-                </span>
-              </td>
-              <td class="px-6 py-4 text-xs text-gray-500">
-                Not configured
-              </td>
-              <td class="px-6 py-4">
-                <div class="flex gap-2">
-                  <button
-                    class="px-3 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded text-xs"
-                  >
-                    ✓ Approve
-                  </button>
-                  <button
-                    class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-xs"
-                  >
-                    ✗ Reject
-                  </button>
-                </div>
-              </td>
-            </tr>
+            {#if ibPartners.length === 0}
+              <tr>
+                <td colspan="7" class="px-6 py-12 text-center text-gray-400">
+                  No IB Partners found. Applications will appear here once submitted.
+                </td>
+              </tr>
+            {:else}
+              {#each ibPartners as partner}
+                <tr class="hover:bg-gray-800/50 transition-colors">
+                  <td class="px-6 py-4">
+                    <div class="text-sm font-medium text-white">{partner.companyName}</div>
+                    <div class="text-xs text-gray-400">{partner.email}</div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="text-sm text-gray-300">{partner.contactName}</div>
+                    <div class="text-xs text-gray-500">{partner.phone}</div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <code class="px-3 py-1 bg-blue-500/20 text-blue-400 rounded font-mono text-sm">
+                      {partner.ibCode}
+                    </code>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="text-sm text-white font-medium">
+                      {partner.stats.totalTraders}
+                    </div>
+                    <div class="text-xs text-green-400">
+                      {partner.stats.activeTraders} active ({partner.stats.conversionRate}%)
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="text-xs space-y-1">
+                      <div class="text-gray-300">
+                        <span class="text-gray-500">Commission:</span>
+                        <span class="text-green-400 font-semibold ml-1">${partner.stats.totalCommission.toLocaleString()}</span>
+                      </div>
+                      <div class="text-gray-300">
+                        <span class="text-gray-500">Volume:</span>
+                        <span class="ml-1">{partner.stats.totalVolume.toLocaleString()}</span>
+                      </div>
+                      <div class="text-gray-300">
+                        <span class="text-gray-500">Trades:</span>
+                        <span class="ml-1">{partner.stats.totalTrades.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    {#if !partner.isApproved}
+                      <span class="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-semibold">
+                        ⏳ Pending
+                      </span>
+                    {:else if partner.isActive}
+                      <span class="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-semibold">
+                        ✓ Active
+                      </span>
+                    {:else}
+                      <span class="px-3 py-1 bg-gray-500/20 text-gray-400 rounded-full text-xs font-semibold">
+                        ⏸ Paused
+                      </span>
+                    {/if}
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="flex flex-col gap-2">
+                      {#if !partner.isApproved}
+                        <button
+                          on:click={() => approveIBPartner(partner.id)}
+                          class="px-3 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded text-xs"
+                        >
+                          ✓ Approve
+                        </button>
+                      {:else}
+                        <button
+                          on:click={() => toggleIBStatus(partner.id, partner.isActive)}
+                          class="px-3 py-1 bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 rounded text-xs"
+                        >
+                          {partner.isActive ? '⏸️ Pause' : '▶️ Activate'}
+                        </button>
+                      {/if}
+                    </div>
+                  </td>
+                </tr>
+              {/each}
+            {/if}
           </tbody>
         </table>
       </div>

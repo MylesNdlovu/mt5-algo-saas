@@ -1,13 +1,16 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import Navigation from '$lib/components/Navigation.svelte';
+	import type { PageData } from './$types';
+
+	export let data: PageData;
 </script>
 
 <svelte:head>
 	<title>IB Partner Program - SCALPERIUM</title>
 </svelte:head>
 
-<Navigation />
+<Navigation user={data.user} />
 
 <div class="min-h-screen bg-black text-white">
 	<!-- Hero Section -->

@@ -115,14 +115,15 @@ model User {
   status       AccountStatus @default(PENDING)
 
   // Relationships
-  mt5Accounts      MT5Account[]
-  eas              EA[]
-  trades           Trade[]
-  notifications    NotificationLog[]
-  insights         UserInsight?
-  automations      Automation[] // User-specific automations
-  leaderboardStats LeaderboardEntry[]
-  agents           Agent[] // C# MT5 automation agents
+  mt5Accounts          MT5Account[]
+  eas                  EA[]
+  trades               Trade[]
+  notifications        NotificationLog[]
+  insights             UserInsight?
+  automations          Automation[] // User-specific automations
+  leaderboardStats     LeaderboardEntry[]
+  agents               Agent[] // C# MT5 automation agents
+  accountAssignments   MT5AccountAssignment[] // Pool agent account assignments
 
   @@index([email])
   @@index([role])
@@ -156,6 +157,9 @@ model MT5Account {
   equity     Float         @default(0)
   margin     Float         @default(0)
   freeMargin Float         @default(0)
+
+  // Multi-Account Trading Control
+  isEnabledForTrading Boolean @default(false) // User can select which accounts to trade on
 
   // Relationships
   eas    EA[]
@@ -490,15 +494,28 @@ model IBPartner {
 
 // Agent model for C# MT5 Automation tracking
 model Agent {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String  @id @default(uuid())
+  userId String? // null for pool agents (multi-account mother agents)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Machine Identity
   machineId   String  @unique // Hardware ID from C# agent
   machineName String?
 
-  // MT5 Connection Info
+  // ==========================================================================
+  // Multi-Instance Pool Agent Support (Mother Agent Architecture)
+  // ==========================================================================
+  isPoolAgent     Boolean  @default(false) // True if this agent manages multiple MT5 instances
+  managedAccounts String[] // Array of MT5 account numbers this pool agent manages
+  maxCapacity     Int      @default(50) // Maximum MT5 instances this agent can manage
+  currentLoad     Int      @default(0) // Current number of MT5 instances
+
+  // VPS Identification (for pool agents)
+  vpsName   String? // e.g., "VPS-FOREX-PROD-01"
+  vpsRegion String? // e.g., "London", "New York", "Tokyo"
+  vpsIp     String? // VPS IP address
+
+  // MT5 Connection Info (for single-account agents)
   mt5AccountNumber String?
   mt5Broker        String?
   mt5ServerName    String?
@@ -510,7 +527,7 @@ model Agent {
   connectedAt    DateTime?
   disconnectedAt DateTime?
 
-  // EA Status
+  // EA Status (for single-account agents)
   eaLoaded       Boolean @default(false)
   eaRunning      Boolean @default(false)
   eaName         String?
@@ -543,15 +560,83 @@ model Agent {
   osVersion    String?
   agentVersion String?
 
+  // Resource Monitoring (for pool agents)
+  cpuUsage        Float? // CPU usage percentage
+  memoryUsage     Float? // Memory usage percentage
+  diskUsage       Float? // Disk usage percentage
+  mt5InstanceCount Int    @default(0) // Number of active MT5 processes
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Relationships
+  accountAssignments MT5AccountAssignment[]
 
   @@index([userId])
   @@index([machineId])
   @@index([status])
   @@index([lastHeartbeat])
   @@index([mt5AccountNumber])
+  @@index([isPoolAgent])
+  @@index([vpsName])
+}
+
+// Track which MT5 accounts are assigned to which pool agent
+model MT5AccountAssignment {
+  id String @id @default(uuid())
+
+  // User who owns this MT5 account
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Pool agent managing this account
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  // MT5 Account Info
+  mt5AccountNumber String  @unique // MT5 account number
+  mt5Broker        String? // Broker name
+  mt5ServerName    String? // Server name
+
+  // Assignment Status
+  assignedAt DateTime @default(now())
+  isActive   Boolean  @default(true)
+
+  // Real-time Status (updated by pool agent)
+  status         String    @default("offline") // online, offline, error, starting
+  eaStatus       String    @default("stopped") // running, stopped, paused, error
+  lastHeartbeat  DateTime?
+
+  // Account Info (synced from MT5)
+  balance    Float @default(0)
+  equity     Float @default(0)
+  margin     Float @default(0)
+  freeMargin Float @default(0)
+  profit     Float @default(0)
+
+  // EA Info
+  eaLoaded       Boolean @default(false)
+  eaRunning      Boolean @default(false)
+  eaName         String?
+  chartSymbol    String?
+  chartTimeframe String?
+
+  // Trade Stats
+  totalTrades      Int   @default(0)
+  profitableTrades Int   @default(0)
+  losingTrades     Int   @default(0)
+  totalProfit      Float @default(0)
+  winRate          Float @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agentId])
+  @@index([userId])
+  @@index([mt5AccountNumber])
+  @@index([status])
+  @@index([isActive])
 }
 
 // Prize configuration for leaderboard

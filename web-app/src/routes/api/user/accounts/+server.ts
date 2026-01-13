@@ -1,24 +1,23 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { getSessionUser } from '$lib/server/auth';
 
 export const GET: RequestHandler = async ({ cookies }) => {
 	try {
 		// Get user from session
-		const userSession = cookies.get('user_session');
-		
-		if (!userSession) {
+		const sessionUser = getSessionUser(cookies);
+
+		if (!sessionUser) {
 			return json({ error: 'Not authenticated' }, { status: 401 });
 		}
 
-		const user = JSON.parse(userSession);
-
-		// Return mock account list
+		// Return mock account list (TODO: Replace with real Prisma query)
 		return json([
 			{
-				id: user.id,
-				userId: user.id,
-				accountNumber: user.id === 1 ? '50012345' : '50067890',
-				broker: user.broker,
+				id: sessionUser.userId,
+				userId: sessionUser.userId,
+				accountNumber: sessionUser.userId === '1' ? '50012345' : '50067890',
+				broker: 'Exness',
 				isActive: true,
 				isPrimary: true
 			}

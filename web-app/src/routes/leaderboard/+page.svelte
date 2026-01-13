@@ -3,7 +3,10 @@
 	import { goto } from '$app/navigation';
 	import LeaderboardTable from '$lib/components/LeaderboardTable.svelte';
 	import Navigation from '$lib/components/Navigation.svelte';
-	
+	import type { PageData } from './$types';
+
+	export let data: PageData;
+
 	let leaderboardPeriod: 'daily' | 'weekly' | 'monthly' = 'daily';
 	let loading = true;
 	let prizes: any = null;
@@ -37,7 +40,7 @@
 	<title>Leaderboard - SCALPERIUM</title>
 </svelte:head>
 
-<Navigation />
+<Navigation user={data.user} />
 
 <div class="min-h-screen bg-black">
 	<!-- Main Content -->

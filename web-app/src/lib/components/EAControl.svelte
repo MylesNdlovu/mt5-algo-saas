@@ -47,37 +47,37 @@
 	</div>
 
 	<!-- Control Buttons -->
-	<div class="flex flex-col sm:flex-row gap-3 sm:space-x-4 sm:gap-0">
+	<div class="flex flex-row gap-2 sm:gap-3">
 		<button
 			on:click={handleStart}
 			disabled={!canStart}
-			class="flex-1 px-4 sm:px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-semibold hover:from-green-500 hover:to-green-600 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-lg text-sm sm:text-base"
+			class="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-medium hover:from-green-500 hover:to-green-600 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-lg text-xs sm:text-sm"
 			class:opacity-50={!canStart}
 		>
 			{#if isRunning}
-				✓ Active
+				✓ Running
 			{:else}
-				Start Bot
+				Start
 			{/if}
 		</button>
 
 		<button
 			on:click={handleStop}
 			disabled={!canStop}
-			class="flex-1 px-4 sm:px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg font-semibold hover:from-red-500 hover:to-red-600 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-lg text-sm sm:text-base"
+			class="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg font-medium hover:from-red-500 hover:to-red-600 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-lg text-xs sm:text-sm"
 			class:opacity-50={!canStop}
 		>
-			Stop Bot
+			Stop
 		</button>
 	</div>
 
 	{#if safetyIndicator === 'RED' && !isRunning}
-		<div class="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-			⚠️ EA is locked due to unsafe market conditions
+		<div class="mt-3 p-2.5 bg-red-900/20 border border-red-500/50 rounded-lg text-xs sm:text-sm text-red-400">
+			⚠️ Locked - Unsafe conditions
 		</div>
 	{:else if safetyIndicator === 'ORANGE' && isRunning}
-		<div class="mt-4 p-3 bg-orange-50 border border-orange-200 rounded text-sm text-orange-700">
-			⚡ Trading with caution - monitor closely
+		<div class="mt-3 p-2.5 bg-amber-900/20 border border-amber-500/50 rounded-lg text-xs sm:text-sm text-amber-400">
+			⚡ Caution - Monitor closely
 		</div>
 	{/if}
 </div>
