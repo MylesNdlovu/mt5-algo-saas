@@ -114,7 +114,7 @@ export const GET: RequestHandler = async ({ cookies, params }) => {
 		const activeTraders = anonymousAccounts.filter((a) => a.isActive).length;
 
 		// Get commission rate configs (if they exist)
-		const commissionRates = await prisma.commissionRateConfig.findMany({
+		const commissionRates = await prisma.iBCommissionRate.findMany({
 			where: {
 				ibPartnerId: partnerId,
 				isActive: true
@@ -149,9 +149,9 @@ export const GET: RequestHandler = async ({ cookies, params }) => {
 				id: rate.id,
 				commissionRate: rate.commissionRate,
 				minVolume: rate.minVolume,
-				maxVolume: rate.maxVolume,
+				maxVolume: rate.maxVolume ?? undefined,
 				effectiveFrom: rate.effectiveFrom,
-				effectiveTo: rate.effectiveTo,
+				effectiveTo: rate.effectiveTo ?? undefined,
 				isActive: rate.isActive
 			})),
 			createdAt: ibPartner.createdAt,
@@ -199,6 +199,7 @@ export const GET: RequestHandler = async ({ cookies, params }) => {
 /**
  * PATCH /api/admin/ib-partners/[partnerId]
  * Update IB partner settings (Admin only)
+ * Supports: isActive, isApproved, and white-label settings (domain, logo, favicon, brandName, brandColor)
  */
 export const PATCH: RequestHandler = async ({ request, cookies, params }) => {
 	const sessionUser = getSessionUser(cookies);
@@ -210,21 +211,45 @@ export const PATCH: RequestHandler = async ({ request, cookies, params }) => {
 	try {
 		const { partnerId } = params;
 		const body = await request.json();
-		const { isActive, isApproved, spreadRevShare, commissionRate } = body;
+		const { isActive, isApproved, domain, logo, favicon, brandName, brandColor } = body;
+
+		// Build update data object
+		const updateData: Record<string, unknown> = {};
+
+		// Status updates
+		if (typeof isActive === 'boolean') {
+			updateData.isActive = isActive;
+		}
+		if (typeof isApproved === 'boolean') {
+			updateData.isApproved = isApproved;
+			updateData.approvedAt = isApproved ? new Date() : null;
+			updateData.approvedBy = isApproved ? sessionUser.userId : null;
+		}
+
+		// White-label updates
+		if (typeof domain === 'string') {
+			// Domain can be empty string to clear it
+			updateData.domain = domain.trim() || null;
+		}
+		if (typeof logo === 'string') {
+			updateData.logo = logo.trim() || null;
+		}
+		if (typeof favicon === 'string') {
+			updateData.favicon = favicon.trim() || null;
+		}
+		if (typeof brandName === 'string') {
+			updateData.brandName = brandName.trim() || null;
+		}
+		if (typeof brandColor === 'string' && /^#[0-9A-Fa-f]{6}$/.test(brandColor)) {
+			updateData.brandColor = brandColor;
+		}
 
 		// Update IB partner
 		const updatedPartner = await prisma.iBPartner.update({
 			where: {
 				id: partnerId
 			},
-			data: {
-				...(typeof isActive === 'boolean' && { isActive }),
-				...(typeof isApproved === 'boolean' && {
-					isApproved,
-					approvedAt: isApproved ? new Date() : null,
-					approvedBy: isApproved ? sessionUser.userId : null
-				})
-			}
+			data: updateData
 		});
 
 		return json({
@@ -234,7 +259,12 @@ export const PATCH: RequestHandler = async ({ request, cookies, params }) => {
 				id: updatedPartner.id,
 				isActive: updatedPartner.isActive,
 				isApproved: updatedPartner.isApproved,
-				approvedAt: updatedPartner.approvedAt
+				approvedAt: updatedPartner.approvedAt,
+				domain: updatedPartner.domain,
+				logo: updatedPartner.logo,
+				favicon: updatedPartner.favicon,
+				brandName: updatedPartner.brandName,
+				brandColor: updatedPartner.brandColor
 			}
 		});
 	} catch (error) {
