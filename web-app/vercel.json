@@ -1,6 +1,12 @@
 {
   "framework": "sveltekit",
   "buildCommand": "npm run build",
+  "installCommand": "npm install",
   "devCommand": "npm run dev",
-  "installCommand": "npm install"
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/"
+    }
+  ]
 }
