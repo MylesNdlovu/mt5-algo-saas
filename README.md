@@ -194,3 +194,4 @@ Trading involves substantial risk of loss. This software is provided "as is" wit
 **Built with ❤️ for algorithmic traders**
 
 For detailed setup instructions, see the documentation in the `/docs` folder.
+# Environment variables configured
