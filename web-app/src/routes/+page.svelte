@@ -86,9 +86,11 @@
 		<div class="text-xs sm:text-sm text-gray-500 mt-6 px-4">
 			<p class="text-center">Mobile-First Gold Trading System</p>
 			{#if !whiteLabel}
-				<p class="text-center text-gray-600 mt-2">
-					<a href="/ib-program" class="hover:text-gray-400 transition-colors">Become an IB Partner</a>
-				</p>
+				<div class="flex items-center justify-center gap-4 mt-3 text-gray-600">
+					<a href="/ib-login" class="hover:text-gray-400 transition-colors">IB Partner Login</a>
+					<span class="text-gray-700">•</span>
+					<a href="/ib-register" class="hover:text-gray-400 transition-colors">Become an IB Partner</a>
+				</div>
 			{/if}
 		</div>
 	</div>
