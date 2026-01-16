@@ -133,7 +133,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// Public routes (no auth required)
 	const publicRoutes = ['/', '/login', '/register', '/ib-login', '/ib-register'];
-	const publicApiRoutes = ['/api/auth/login', '/api/auth/register', '/api/auth/logout'];
+	const publicApiRoutes = [
+		'/api/auth/login',
+		'/api/auth/register',
+		'/api/auth/logout',
+		'/api/ib/login',
+		'/api/ib/register'
+	];
 
 	if (publicRoutes.includes(path) || publicApiRoutes.some(route => path.startsWith(route))) {
 		return resolve(event);
