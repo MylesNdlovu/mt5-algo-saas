@@ -17,6 +17,7 @@
 
 	// White-label edit state
 	let editingWhiteLabel = false;
+	let savingWhiteLabel = false;
 	let whitelabelForm = {
 		logo: '',
 		favicon: '',
@@ -24,6 +25,30 @@
 		brandColor: '',
 		domain: ''
 	};
+
+	// Save white-label settings
+	async function saveWhiteLabelSettings() {
+		savingWhiteLabel = true;
+		try {
+			const response = await fetch(`/api/admin/ib-partners/${data.partnerId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(whitelabelForm)
+			});
+			const result = await response.json();
+			if (result.success) {
+				editingWhiteLabel = false;
+				await loadPartnerDetails();
+			} else {
+				alert(result.error || 'Failed to update white-label settings');
+			}
+		} catch (err) {
+			console.error('Error updating white-label:', err);
+			alert('Failed to update white-label settings');
+		} finally {
+			savingWhiteLabel = false;
+		}
+	}
 
 	onMount(() => {
 		loadPartnerDetails();
@@ -515,71 +540,147 @@
 					{/if}
 				</div>
 			{:else if activeTab === 'whitelabel'}
-				<!-- White Label Settings -->
+				<!-- White Label Settings - ADMIN CONTROLLED -->
 				<div class="space-y-6">
-					<!-- Edit Toggle -->
-					<div class="flex justify-between items-center">
-						<h2 class="text-2xl font-bold">White Label Configuration</h2>
-						<button
-							on:click={() => (editingWhiteLabel = !editingWhiteLabel)}
-							class="px-4 py-2 {editingWhiteLabel ? 'bg-gray-600 hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-700'} rounded-lg transition-colors"
-						>
-							{editingWhiteLabel ? 'Cancel Editing' : 'Edit Settings'}
-						</button>
+					<!-- Admin Notice -->
+					<div class="bg-purple-900/20 border border-purple-500/30 rounded-lg p-4">
+						<div class="flex items-start gap-3">
+							<span class="text-2xl">🎨</span>
+							<div>
+								<div class="font-bold text-purple-400 mb-1">Admin-Controlled White Label Settings</div>
+								<div class="text-sm text-gray-400">
+									As an admin, you can configure this IB partner's branding. These settings control how the platform appears
+									when accessed via their custom domain. IB partners cannot modify these settings themselves.
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Current Branding Preview -->
+					<div class="bg-gray-900 border border-gray-700 rounded-lg p-6">
+						<div class="flex justify-between items-start mb-6">
+							<h3 class="text-xl font-bold">Current Branding</h3>
+							<button
+								on:click={() => (editingWhiteLabel = !editingWhiteLabel)}
+								class="px-4 py-2 {editingWhiteLabel ? 'bg-gray-600 hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-700'} rounded-lg transition-colors font-medium"
+							>
+								{editingWhiteLabel ? 'Cancel' : 'Edit Branding'}
+							</button>
+						</div>
+
+						<!-- Visual Preview -->
+						<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+							<!-- Logo & Favicon -->
+							<div class="space-y-6">
+								<div>
+									<div class="text-gray-400 text-sm mb-3 font-medium">Company Logo</div>
+									<div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex items-center justify-center" style="min-height: 120px;">
+										{#if partner.logo}
+											<img src={partner.logo} alt="Logo" class="max-w-full max-h-24 object-contain" />
+										{:else}
+											<div class="text-center">
+												<div class="w-20 h-20 bg-gray-700 rounded-lg flex items-center justify-center mx-auto mb-2">
+													<span class="text-3xl text-gray-500">🖼️</span>
+												</div>
+												<span class="text-gray-500 text-sm">No logo uploaded</span>
+											</div>
+										{/if}
+									</div>
+								</div>
+
+								<div>
+									<div class="text-gray-400 text-sm mb-3 font-medium">Favicon (Browser Tab Icon)</div>
+									<div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex items-center gap-4">
+										{#if partner.favicon}
+											<img src={partner.favicon} alt="Favicon" class="w-8 h-8 object-contain" />
+											<span class="text-green-400 text-sm">Favicon configured</span>
+										{:else}
+											<div class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center">
+												<span class="text-gray-500 text-xs">⭐</span>
+											</div>
+											<span class="text-gray-500 text-sm">No favicon uploaded</span>
+										{/if}
+									</div>
+								</div>
+							</div>
+
+							<!-- Brand Settings -->
+							<div class="space-y-6">
+								<div>
+									<div class="text-gray-400 text-sm mb-2 font-medium">Brand Name</div>
+									<div class="text-2xl font-bold" style="color: {partner.brandColor}">
+										{partner.brandName || partner.companyName}
+									</div>
+								</div>
+
+								<div>
+									<div class="text-gray-400 text-sm mb-2 font-medium">Primary Brand Color</div>
+									<div class="flex items-center gap-3">
+										<div
+											class="w-12 h-12 rounded-lg border-2 border-gray-600"
+											style="background-color: {partner.brandColor}"
+										></div>
+										<span class="font-mono text-lg">{partner.brandColor}</span>
+									</div>
+								</div>
+
+								<div>
+									<div class="text-gray-400 text-sm mb-2 font-medium">Custom Domain</div>
+									{#if partner.domain}
+										<div class="flex items-center gap-2">
+											<span class="text-green-400 font-bold text-lg">{partner.domain}</span>
+											<span class="bg-green-900/30 text-green-400 text-xs px-2 py-1 rounded border border-green-500/30">Active</span>
+										</div>
+									{:else}
+										<span class="text-gray-500">Not configured</span>
+									{/if}
+								</div>
+							</div>
+						</div>
 					</div>
 
 					{#if editingWhiteLabel}
 						<!-- Edit Form -->
-						<form
-							on:submit|preventDefault={async () => {
-								try {
-									const response = await fetch(`/api/admin/ib-partners/${data.partnerId}`, {
-										method: 'PATCH',
-										headers: { 'Content-Type': 'application/json' },
-										body: JSON.stringify(whitelabelForm)
-									});
-									const result = await response.json();
-									if (result.success) {
-										editingWhiteLabel = false;
-										await loadPartnerDetails();
-									} else {
-										alert(result.error || 'Failed to update white-label settings');
-									}
-								} catch (err) {
-									console.error('Error updating white-label:', err);
-									alert('Failed to update white-label settings');
-								}
-							}}
-							class="space-y-6"
-						>
-							<!-- Domain -->
-							<div class="bg-gray-900 border border-gray-700 rounded-lg p-6">
-								<h3 class="text-xl font-bold mb-4 text-purple-400">Custom Domain</h3>
+						<form on:submit|preventDefault={saveWhiteLabelSettings} class="space-y-6">
+							<!-- Domain Configuration -->
+							<div class="bg-gray-900 border border-purple-500/30 rounded-lg p-6">
+								<h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+									<span>🌐</span>
+									<span class="text-purple-400">Custom Domain</span>
+								</h3>
 								<div>
 									<label for="domain" class="block text-sm font-medium text-gray-400 mb-2">
-										Domain (e.g., trading.yourcompany.com)
+										Domain URL
 									</label>
 									<input
 										id="domain"
 										type="text"
 										bind:value={whitelabelForm.domain}
-										placeholder="trading.example.com"
-										class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+										placeholder="e.g., trading.alphatrade.com"
+										class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 text-lg"
 									/>
-									<p class="mt-2 text-xs text-gray-500">
-										Leave empty to disable custom domain. The IB partner must configure DNS to point to mt5-algo-saas.vercel.app
-									</p>
+									<div class="mt-3 p-3 bg-gray-800 rounded text-sm text-gray-400">
+										<strong>Setup Steps:</strong>
+										<ol class="list-decimal ml-4 mt-2 space-y-1">
+											<li>Enter the domain here and save</li>
+											<li>Add the domain to Vercel: <code class="text-blue-400">vercel domains add {whitelabelForm.domain || 'domain.com'}</code></li>
+											<li>IB partner configures DNS: CNAME → <code class="text-green-400">cname.vercel-dns.com</code></li>
+										</ol>
+									</div>
 								</div>
 							</div>
 
-							<!-- Branding -->
-							<div class="bg-gray-900 border border-gray-700 rounded-lg p-6">
-								<h3 class="text-xl font-bold mb-4 text-blue-400">Branding</h3>
-								<div class="space-y-4">
+							<!-- Branding Settings -->
+							<div class="bg-gray-900 border border-blue-500/30 rounded-lg p-6">
+								<h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+									<span>🎨</span>
+									<span class="text-blue-400">Branding</span>
+								</h3>
+								<div class="space-y-5">
 									<!-- Brand Name -->
 									<div>
 										<label for="brandName" class="block text-sm font-medium text-gray-400 mb-2">
-											Brand Name
+											Brand Name (replaces "SCALPERIUM" in UI)
 										</label>
 										<input
 											id="brandName"
@@ -600,70 +701,90 @@
 												id="brandColor"
 												type="color"
 												bind:value={whitelabelForm.brandColor}
-												class="w-16 h-16 rounded-lg border-2 border-gray-700 cursor-pointer"
+												class="w-14 h-14 rounded-lg border-2 border-gray-700 cursor-pointer"
 											/>
 											<input
 												type="text"
 												bind:value={whitelabelForm.brandColor}
 												placeholder="#EF4444"
 												pattern="^#[0-9A-Fa-f]{6}$"
-												class="w-32 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white font-mono focus:outline-none focus:border-blue-500"
+												class="w-36 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white font-mono focus:outline-none focus:border-blue-500"
 											/>
+											<span class="text-gray-500 text-sm">Used for buttons, accents, highlights</span>
 										</div>
 									</div>
+								</div>
+							</div>
 
+							<!-- Asset URLs -->
+							<div class="bg-gray-900 border border-green-500/30 rounded-lg p-6">
+								<h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+									<span>📁</span>
+									<span class="text-green-400">Brand Assets</span>
+								</h3>
+								<div class="mb-4 p-3 bg-green-900/20 rounded text-sm text-gray-300">
+									<strong>How to upload assets:</strong> Upload logo/favicon files to the <code class="text-blue-400">/static/ib-logos/</code> folder
+									in the project, then enter the path below (e.g., <code class="text-blue-400">/ib-logos/alpha-logo.png</code>)
+								</div>
+								<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<!-- Logo URL -->
 									<div>
 										<label for="logo" class="block text-sm font-medium text-gray-400 mb-2">
-											Logo URL
+											Logo URL (200x200px PNG recommended)
 										</label>
 										<input
 											id="logo"
 											type="text"
 											bind:value={whitelabelForm.logo}
 											placeholder="/ib-logos/company-logo.png"
-											class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+											class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
 										/>
-										<p class="mt-2 text-xs text-gray-500">
-											Upload logo to /static/ib-logos/ and enter the path here (e.g., /ib-logos/logo.png)
-										</p>
-										{#if whitelabelForm.logo}
-											<div class="mt-3">
-												<img
-													src={whitelabelForm.logo}
-													alt="Logo preview"
-													class="w-24 h-24 object-contain bg-gray-800 rounded border border-gray-700 p-2"
-												/>
-											</div>
-										{/if}
+										<div class="mt-3 bg-gray-800 rounded-lg p-3 border border-gray-700 h-24 flex items-center justify-center">
+											{#if whitelabelForm.logo}
+												<img src={whitelabelForm.logo} alt="Logo preview" class="max-h-20 object-contain" />
+											{:else}
+												<span class="text-gray-500 text-sm">Logo preview</span>
+											{/if}
+										</div>
 									</div>
 
 									<!-- Favicon URL -->
 									<div>
 										<label for="favicon" class="block text-sm font-medium text-gray-400 mb-2">
-											Favicon URL
+											Favicon URL (32x32px ICO/PNG)
 										</label>
 										<input
 											id="favicon"
 											type="text"
 											bind:value={whitelabelForm.favicon}
 											placeholder="/ib-logos/favicon.ico"
-											class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+											class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
 										/>
-										<p class="mt-2 text-xs text-gray-500">
-											Upload favicon to /static/ib-logos/ and enter the path here
-										</p>
+										<div class="mt-3 bg-gray-800 rounded-lg p-3 border border-gray-700 h-24 flex items-center justify-center">
+											{#if whitelabelForm.favicon}
+												<img src={whitelabelForm.favicon} alt="Favicon preview" class="w-8 h-8 object-contain" />
+											{:else}
+												<span class="text-gray-500 text-sm">Favicon preview</span>
+											{/if}
+										</div>
 									</div>
 								</div>
 							</div>
 
-							<!-- Save Button -->
+							<!-- Action Buttons -->
 							<div class="flex gap-4">
 								<button
 									type="submit"
-									class="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-bold transition-colors"
+									disabled={savingWhiteLabel}
+									class="px-8 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-lg font-bold transition-colors flex items-center gap-2"
 								>
-									Save White Label Settings
+									{#if savingWhiteLabel}
+										<span class="animate-spin">⏳</span>
+										<span>Saving...</span>
+									{:else}
+										<span>💾</span>
+										<span>Save White Label Settings</span>
+									{/if}
 								</button>
 								<button
 									type="button"
@@ -675,70 +796,23 @@
 							</div>
 						</form>
 					{:else}
-						<!-- View Mode -->
-						<!-- Current Settings Display -->
-						<div class="bg-gray-900 border border-gray-700 rounded-lg p-6">
-							<h3 class="text-xl font-bold mb-4">Current Settings</h3>
-							<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-								<div>
-									<div class="text-gray-400 text-sm mb-1">Custom Domain</div>
-									<div class="font-bold {partner.domain ? 'text-green-400' : 'text-gray-500'}">
-										{partner.domain || 'Not configured'}
-									</div>
-								</div>
-								<div>
-									<div class="text-gray-400 text-sm mb-1">Brand Name</div>
-									<div class="font-bold">{partner.brandName || partner.companyName}</div>
-								</div>
-								<div>
-									<div class="text-gray-400 text-sm mb-1">Brand Color</div>
-									<div class="flex items-center gap-2">
-										<div
-											class="w-8 h-8 rounded border border-gray-700"
-											style="background-color: {partner.brandColor}"
-										></div>
-										<span class="font-mono">{partner.brandColor}</span>
-									</div>
-								</div>
-								<div>
-									<div class="text-gray-400 text-sm mb-1">Logo</div>
-									{#if partner.logo}
-										<img src={partner.logo} alt="Logo" class="w-16 h-16 object-contain bg-gray-800 rounded p-1" />
-									{:else}
-										<span class="text-gray-500">Not uploaded</span>
-									{/if}
-								</div>
-							</div>
-						</div>
-
 						<!-- DNS Instructions (if domain is set) -->
 						{#if partner.domain}
 							<div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-6">
-								<h3 class="text-xl font-bold mb-3 text-blue-400">DNS Configuration Required</h3>
+								<h3 class="text-xl font-bold mb-3 text-blue-400">DNS Configuration for IB Partner</h3>
 								<p class="text-gray-300 mb-4">
-									The IB partner must configure their DNS with the following record:
+									Send these instructions to the IB partner to complete their domain setup:
 								</p>
 								<div class="bg-gray-900 p-4 rounded-lg font-mono text-sm space-y-2">
 									<div><span class="text-gray-500">Type:</span> <span class="text-white">CNAME</span></div>
 									<div><span class="text-gray-500">Name:</span> <span class="text-white">{partner.domain}</span></div>
 									<div><span class="text-gray-500">Value:</span> <span class="text-green-400">cname.vercel-dns.com</span></div>
 								</div>
-								<p class="text-xs text-gray-500 mt-3">
-									After DNS is configured, the domain must also be added to the Vercel project.
-								</p>
+								<div class="mt-4 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded text-sm text-yellow-300">
+									<strong>Admin Action Required:</strong> Run <code class="bg-gray-800 px-2 py-1 rounded">vercel domains add {partner.domain}</code> to enable this domain.
+								</div>
 							</div>
 						{/if}
-
-						<!-- Best Practices -->
-						<div class="bg-gray-900 border border-gray-700 rounded-lg p-6">
-							<h3 class="text-xl font-bold mb-3">White Label Best Practices</h3>
-							<div class="space-y-2 text-sm text-gray-400">
-								<p>- <strong>Logo:</strong> PNG with transparency, 200x200px minimum</p>
-								<p>- <strong>Favicon:</strong> ICO or PNG, 32x32px</p>
-								<p>- <strong>Domain:</strong> Subdomain recommended (e.g., trading.company.com)</p>
-								<p>- <strong>SSL:</strong> Automatically provisioned via Vercel</p>
-							</div>
-						</div>
 					{/if}
 				</div>
 			{/if}
