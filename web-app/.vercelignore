@@ -1,0 +1,14 @@
+# Don't upload local env files
+.env
+.env.*
+!.env.example
+
+# Don't upload test files
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+
+# Don't upload development files
+node_modules
+.DS_Store
