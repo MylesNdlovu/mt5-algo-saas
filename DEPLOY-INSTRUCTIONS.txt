@@ -1,0 +1,172 @@
+═══════════════════════════════════════════════════════════════════════════════
+SCALPERIUM - DEPLOYMENT INSTRUCTIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+Copy and paste these commands into your Mac Terminal (not Claude Code).
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 1: CREATE GITHUB TOKEN
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Open this URL in your browser:
+   https://github.com/settings/tokens/new
+
+2. Fill in:
+   - Note: "MT5 SaaS Deployment"
+   - Expiration: "No expiration"
+   - Scopes: Check ✅ "repo"
+
+3. Click "Generate token"
+
+4. COPY THE TOKEN (starts with ghp_...)
+   ⚠️ You won't see it again!
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 2: PUSH TO GITHUB
+═══════════════════════════════════════════════════════════════════════════════
+
+Open Terminal and run:
+
+cd /Users/dmd/mt5-algo-saas
+git push origin main
+
+When prompted:
+  Username for 'https://github.com': MylesNdlovu
+  Password for 'https://MylesNdlovu@github.com': <PASTE YOUR TOKEN HERE>
+
+Mac will save this to keychain - only need to do once!
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 3: LINK VERCEL PROJECT
+═══════════════════════════════════════════════════════════════════════════════
+
+cd /Users/dmd/mt5-algo-saas/web-app
+vercel link
+
+Answer prompts:
+  ? Set up project? → Y
+  ? Which scope? → Select your account
+  ? Link to existing project? → N (create new)
+  ? What's your project's name? → scalperium
+  ? In which directory is your code located? → ./
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 4: ADD ENVIRONMENT VARIABLES
+═══════════════════════════════════════════════════════════════════════════════
+
+Option A: Via Vercel Dashboard (RECOMMENDED)
+--------------------------------------------
+1. Open: https://vercel.com/dashboard
+2. Click your project → Settings → Environment Variables
+3. Add these 3 variables:
+
+   DATABASE_URL
+   Value: postgresql://user:pass@host:5432/database
+   Apply to: Production, Preview, Development
+
+   AUTH_SECRET
+   Value: (generate below)
+   Apply to: Production, Preview, Development
+
+   PUBLIC_APP_URL
+   Value: https://scalperium.vercel.app
+   Apply to: Production, Preview, Development
+
+Generate AUTH_SECRET:
+  openssl rand -base64 32
+
+
+Option B: Via CLI (ALTERNATIVE)
+--------------------------------
+vercel env add DATABASE_URL production
+# Paste your Postgres connection string
+
+vercel env add AUTH_SECRET production
+# Paste output from: openssl rand -base64 32
+
+vercel env add PUBLIC_APP_URL production
+# Enter: https://scalperium.vercel.app
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 5: DEPLOY TO PRODUCTION
+═══════════════════════════════════════════════════════════════════════════════
+
+cd /Users/dmd/mt5-algo-saas/web-app
+vercel --prod
+
+Wait 2-3 minutes for deployment.
+
+You'll get a URL like: https://scalperium-xxxxx.vercel.app
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 6: TEST AUTOMATED DEPLOYMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+cd /Users/dmd/mt5-algo-saas
+./deploy.sh "Test automated deployment"
+
+Should see:
+  ✓ DEPLOYMENT COMPLETE!
+  Changes are now live on:
+    • Local: ✓ Committed
+    • GitHub: ✓ Pushed
+    • Vercel: ✓ Deployed
+
+═══════════════════════════════════════════════════════════════════════════════
+✅ DONE! FROM NOW ON:
+═══════════════════════════════════════════════════════════════════════════════
+
+Every time you make changes:
+
+  ./deploy.sh "Your commit message"
+
+That's it! Updates Local + GitHub + Vercel in one command.
+
+═══════════════════════════════════════════════════════════════════════════════
+TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════════
+
+Problem: "Permission denied to GitHub"
+Solution:
+  git credential-osxkeychain erase
+  host=github.com
+  protocol=https
+  <Press Enter twice>
+  git push origin main
+
+Problem: "Vercel deployment failed"
+Solution:
+  cd web-app
+  vercel logs
+  # Check for missing environment variables or build errors
+
+Problem: Database connection fails
+Solution:
+  # Make sure DATABASE_URL is correct in Vercel
+  # Test locally: npx prisma db push
+
+═══════════════════════════════════════════════════════════════════════════════
+NEXT STEPS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Add custom domain:
+   Vercel Dashboard → Domains → Add your domain
+
+2. Run database migrations:
+   cd web-app
+   npx prisma migrate deploy
+
+3. Test your app:
+   Visit your Vercel URL
+   Register account
+   Connect MT5 account
+
+═══════════════════════════════════════════════════════════════════════════════
+QUICK LINKS
+═══════════════════════════════════════════════════════════════════════════════
+
+GitHub Token: https://github.com/settings/tokens/new
+Vercel Dashboard: https://vercel.com/dashboard
+Your Repo: https://github.com/MylesNdlovu/mt5-algo-saas
+
+═══════════════════════════════════════════════════════════════════════════════
