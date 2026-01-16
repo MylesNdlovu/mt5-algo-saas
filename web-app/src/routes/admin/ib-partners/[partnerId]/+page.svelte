@@ -18,6 +18,8 @@
 	// White-label edit state
 	let editingWhiteLabel = false;
 	let savingWhiteLabel = false;
+	let uploadingLogo = false;
+	let uploadingFavicon = false;
 	let whitelabelForm = {
 		logo: '',
 		favicon: '',
@@ -25,6 +27,60 @@
 		brandColor: '',
 		domain: ''
 	};
+
+	// File upload handler
+	async function uploadFile(file: File, type: 'logo' | 'favicon'): Promise<string | null> {
+		const formData = new FormData();
+		formData.append('file', file);
+		formData.append('type', type);
+		formData.append('partnerId', data.partnerId);
+
+		try {
+			const response = await fetch('/api/admin/upload', {
+				method: 'POST',
+				body: formData
+			});
+			const result = await response.json();
+			if (result.success) {
+				return result.url;
+			} else {
+				alert(result.error || `Failed to upload ${type}`);
+				return null;
+			}
+		} catch (err) {
+			console.error(`Error uploading ${type}:`, err);
+			alert(`Failed to upload ${type}`);
+			return null;
+		}
+	}
+
+	// Handle logo file selection
+	async function handleLogoUpload(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		uploadingLogo = true;
+		const url = await uploadFile(file, 'logo');
+		if (url) {
+			whitelabelForm.logo = url;
+		}
+		uploadingLogo = false;
+	}
+
+	// Handle favicon file selection
+	async function handleFaviconUpload(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		uploadingFavicon = true;
+		const url = await uploadFile(file, 'favicon');
+		if (url) {
+			whitelabelForm.favicon = url;
+		}
+		uploadingFavicon = false;
+	}
 
 	// Save white-label settings
 	async function saveWhiteLabelSettings() {
@@ -716,55 +772,112 @@
 								</div>
 							</div>
 
-							<!-- Asset URLs -->
+							<!-- Brand Assets Upload -->
 							<div class="bg-gray-900 border border-green-500/30 rounded-lg p-6">
 								<h3 class="text-xl font-bold mb-4 flex items-center gap-2">
 									<span>📁</span>
 									<span class="text-green-400">Brand Assets</span>
 								</h3>
-								<div class="mb-4 p-3 bg-green-900/20 rounded text-sm text-gray-300">
-									<strong>How to upload assets:</strong> Upload logo/favicon files to the <code class="text-blue-400">/static/ib-logos/</code> folder
-									in the project, then enter the path below (e.g., <code class="text-blue-400">/ib-logos/alpha-logo.png</code>)
-								</div>
 								<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-									<!-- Logo URL -->
-									<div>
-										<label for="logo" class="block text-sm font-medium text-gray-400 mb-2">
-											Logo URL (200x200px PNG recommended)
-										</label>
+									<!-- Logo Upload -->
+									<div class="space-y-3">
+										<div class="flex items-center justify-between">
+											<label class="block text-sm font-medium text-white">Company Logo</label>
+											<span class="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">200x200px | PNG/JPG | Max 2MB</span>
+										</div>
+
+										<!-- Upload Button -->
+										<div class="relative">
+											<input
+												type="file"
+												accept="image/png,image/jpeg,image/webp,image/svg+xml"
+												on:change={handleLogoUpload}
+												class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+												disabled={uploadingLogo}
+											/>
+											<div class="flex items-center gap-3 px-4 py-3 bg-gray-800 border border-gray-700 border-dashed rounded-lg hover:border-green-500 transition-colors">
+												{#if uploadingLogo}
+													<span class="animate-spin text-xl">⏳</span>
+													<span class="text-gray-400">Uploading...</span>
+												{:else}
+													<span class="text-2xl">📤</span>
+													<span class="text-gray-300">Click to upload logo</span>
+												{/if}
+											</div>
+										</div>
+
+										<!-- URL Input (for manual entry or showing uploaded URL) -->
 										<input
-											id="logo"
 											type="text"
 											bind:value={whitelabelForm.logo}
-											placeholder="/ib-logos/company-logo.png"
-											class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+											placeholder="Or paste URL..."
+											class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-green-500"
 										/>
-										<div class="mt-3 bg-gray-800 rounded-lg p-3 border border-gray-700 h-24 flex items-center justify-center">
+
+										<!-- Preview -->
+										<div class="bg-gray-800 rounded-lg p-4 border border-gray-700 min-h-[100px] flex items-center justify-center">
 											{#if whitelabelForm.logo}
-												<img src={whitelabelForm.logo} alt="Logo preview" class="max-h-20 object-contain" />
+												<img src={whitelabelForm.logo} alt="Logo preview" class="max-h-20 max-w-full object-contain" />
 											{:else}
-												<span class="text-gray-500 text-sm">Logo preview</span>
+												<div class="text-center">
+													<div class="w-16 h-16 bg-gray-700 rounded-lg flex items-center justify-center mx-auto mb-2">
+														<span class="text-2xl text-gray-500">🖼️</span>
+													</div>
+													<span class="text-gray-500 text-xs">No logo</span>
+												</div>
 											{/if}
 										</div>
 									</div>
 
-									<!-- Favicon URL -->
-									<div>
-										<label for="favicon" class="block text-sm font-medium text-gray-400 mb-2">
-											Favicon URL (32x32px ICO/PNG)
-										</label>
+									<!-- Favicon Upload -->
+									<div class="space-y-3">
+										<div class="flex items-center justify-between">
+											<label class="block text-sm font-medium text-white">Favicon</label>
+											<span class="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">32x32px | ICO/PNG | Max 100KB</span>
+										</div>
+
+										<!-- Upload Button -->
+										<div class="relative">
+											<input
+												type="file"
+												accept="image/png,image/x-icon,image/vnd.microsoft.icon,.ico"
+												on:change={handleFaviconUpload}
+												class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+												disabled={uploadingFavicon}
+											/>
+											<div class="flex items-center gap-3 px-4 py-3 bg-gray-800 border border-gray-700 border-dashed rounded-lg hover:border-green-500 transition-colors">
+												{#if uploadingFavicon}
+													<span class="animate-spin text-xl">⏳</span>
+													<span class="text-gray-400">Uploading...</span>
+												{:else}
+													<span class="text-2xl">📤</span>
+													<span class="text-gray-300">Click to upload favicon</span>
+												{/if}
+											</div>
+										</div>
+
+										<!-- URL Input -->
 										<input
-											id="favicon"
 											type="text"
 											bind:value={whitelabelForm.favicon}
-											placeholder="/ib-logos/favicon.ico"
-											class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+											placeholder="Or paste URL..."
+											class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-green-500"
 										/>
-										<div class="mt-3 bg-gray-800 rounded-lg p-3 border border-gray-700 h-24 flex items-center justify-center">
+
+										<!-- Preview -->
+										<div class="bg-gray-800 rounded-lg p-4 border border-gray-700 min-h-[100px] flex items-center justify-center">
 											{#if whitelabelForm.favicon}
-												<img src={whitelabelForm.favicon} alt="Favicon preview" class="w-8 h-8 object-contain" />
+												<div class="text-center">
+													<img src={whitelabelForm.favicon} alt="Favicon preview" class="w-8 h-8 object-contain mx-auto mb-2" />
+													<span class="text-green-400 text-xs">Favicon set</span>
+												</div>
 											{:else}
-												<span class="text-gray-500 text-sm">Favicon preview</span>
+												<div class="text-center">
+													<div class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center mx-auto mb-2">
+														<span class="text-gray-500 text-xs">⭐</span>
+													</div>
+													<span class="text-gray-500 text-xs">No favicon</span>
+												</div>
 											{/if}
 										</div>
 									</div>
