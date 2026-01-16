@@ -68,7 +68,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 				ibDomain = hostname;
 				ibBranding = {
 					brandName: ibPartnerByDomain.brandName || ibPartnerByDomain.companyName,
-					brandColor: ibPartnerByDomain.brandColor || '#EF4444',
+					brandColor: ibPartnerByDomain.brandColor || '#3B82F6',
 					logo: ibPartnerByDomain.logo,
 					domain: hostname
 				};
@@ -113,7 +113,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			ibDomain = ibPartner.domain || null;
 			ibBranding = {
 				brandName: ibPartner.brandName || ibPartner.companyName,
-				brandColor: ibPartner.brandColor || '#EF4444',
+				brandColor: ibPartner.brandColor || '#3B82F6',
 				logo: ibPartner.logo,
 				domain: ibPartner.domain
 			};

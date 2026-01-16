@@ -18,7 +18,7 @@
 	$: whiteLabel = $page.data.whiteLabel;
 	$: isWhiteLabelDomain = !!whiteLabel;
 	$: brandName = whiteLabel?.brandName || 'SCALPERIUM';
-	$: brandColor = whiteLabel?.brandColor || '#EF4444';
+	$: brandColor = whiteLabel?.brandColor || '#3B82F6'; // Trading blue (profitable trades in MT5)
 	$: logoUrl = whiteLabel?.logo || '/logo.png';
 
 	// Auto-fill IB code from white-label domain

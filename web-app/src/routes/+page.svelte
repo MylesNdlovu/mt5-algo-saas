@@ -5,7 +5,7 @@
 	// Get white-label branding from layout data (set when accessed via IB custom domain)
 	$: whiteLabel = $page.data.whiteLabel;
 	$: brandName = whiteLabel?.brandName || 'SCALPERIUM';
-	$: brandColor = whiteLabel?.brandColor || '#EF4444';
+	$: brandColor = whiteLabel?.brandColor || '#3B82F6'; // Trading blue (profitable trades in MT5)
 	$: logoUrl = whiteLabel?.logo || '/logo.png';
 </script>
 

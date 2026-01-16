@@ -12,7 +12,7 @@ export interface EmailBranding {
 
 const DEFAULT_BRANDING: EmailBranding = {
 	brandName: 'SCALPERIUM',
-	brandColor: '#EF4444',
+	brandColor: '#3B82F6', // Trading blue (profitable trades in MT5)
 	logo: null,
 	domain: null
 };

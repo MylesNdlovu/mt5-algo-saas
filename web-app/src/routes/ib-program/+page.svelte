@@ -106,6 +106,24 @@
 						<span>100% White Label</span>
 					</div>
 				</div>
+
+				<!-- Primary CTA Buttons -->
+				<div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+					<a
+						href="/ib-register"
+						class="px-10 py-4 bg-gradient-to-r from-blue-500 to-blue-700 rounded-xl font-bold text-lg hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] transition-all duration-300 text-white"
+						style="font-family: 'Orbitron', sans-serif;"
+					>
+						REGISTER AS IB PARTNER →
+					</a>
+					<a
+						href="/ib-login"
+						class="px-10 py-4 bg-gray-900 border-2 border-blue-500/50 text-blue-400 rounded-xl font-bold text-lg hover:bg-gray-800 transition-all duration-300"
+						style="font-family: 'Orbitron', sans-serif;"
+					>
+						IB PARTNER LOGIN
+					</a>
+				</div>
 			</div>
 			
 			<!-- Revenue Calculator -->
@@ -383,24 +401,24 @@
 			</p>
 			
 			<div class="flex flex-col md:flex-row gap-4 justify-center items-center">
-				<a 
-					href="#contact"
-					class="px-12 py-5 bg-gradient-to-r from-red-500 to-red-700 rounded-xl font-bold text-xl hover:shadow-[0_0_40px_rgba(239,68,68,0.6)] transition-all duration-300"
+				<a
+					href="/ib-register"
+					class="px-12 py-5 bg-gradient-to-r from-blue-500 to-blue-700 rounded-xl font-bold text-xl hover:shadow-[0_0_40px_rgba(59,130,246,0.6)] transition-all duration-300 text-white"
 					style="font-family: 'Orbitron', sans-serif;"
 				>
-					APPLY NOW →
+					REGISTER NOW →
 				</a>
-				<a 
-					href="#calculator"
-					class="px-12 py-5 bg-gray-900 border-2 border-red-500/50 rounded-xl font-bold text-xl hover:bg-gray-800 transition-all duration-300"
+				<a
+					href="/ib-login"
+					class="px-12 py-5 bg-gray-900 border-2 border-blue-500/50 text-blue-400 rounded-xl font-bold text-xl hover:bg-gray-800 transition-all duration-300"
 					style="font-family: 'Orbitron', sans-serif;"
 				>
-					Calculate Your Revenue
+					IB Partner Login
 				</a>
 			</div>
 		</div>
 	</div>
-	
+
 	<!-- Comparison Table -->
 	<div class="bg-gradient-to-br from-black via-red-950/10 to-black py-20">
 		<div class="max-w-7xl mx-auto px-6">
@@ -734,30 +752,37 @@
 	</div>
 	
 	<!-- Final CTA -->
-	<div class="bg-gradient-to-br from-red-500/20 via-black to-red-500/20 py-20">
+	<div class="bg-gradient-to-br from-blue-500/20 via-black to-blue-500/20 py-20">
 		<div class="max-w-5xl mx-auto px-6 text-center">
 			<h2 class="text-4xl md:text-6xl font-bold mb-8" style="font-family: 'Orbitron', sans-serif;">
 				STOP REPLACING TRADERS.<br>
-				<span class="text-red-500">START RETAINING THEM.</span>
+				<span class="text-blue-500">START RETAINING THEM.</span>
 			</h2>
-			
+
 			<p class="text-2xl text-gray-300 mb-12 leading-relaxed">
 				12 partnership slots left for Q1 2026. Applications close when capacity is reached.
 			</p>
-			
+
 			<div class="flex flex-col md:flex-row gap-6 justify-center items-center mb-8">
-				<a 
-					href="#contact"
-					class="px-16 py-6 bg-gradient-to-r from-red-500 to-red-700 rounded-xl font-bold text-2xl hover:shadow-[0_0_50px_rgba(239,68,68,0.7)] transition-all duration-300"
+				<a
+					href="/ib-register"
+					class="px-16 py-6 bg-gradient-to-r from-blue-500 to-blue-700 rounded-xl font-bold text-2xl hover:shadow-[0_0_50px_rgba(59,130,246,0.7)] transition-all duration-300 text-white"
 					style="font-family: 'Orbitron', sans-serif;"
 				>
-					APPLY NOW →
+					REGISTER NOW →
+				</a>
+				<a
+					href="/ib-login"
+					class="px-16 py-6 bg-gray-900 border-2 border-blue-500/50 text-blue-400 rounded-xl font-bold text-2xl hover:bg-gray-800 transition-all duration-300"
+					style="font-family: 'Orbitron', sans-serif;"
+				>
+					IB LOGIN
 				</a>
 			</div>
-			
+
 			<p class="text-sm text-gray-500">
-				Need more info? Email us at <a href="mailto:partners@scalperium.com" class="text-red-400 hover:text-red-300">partners@scalperium.com</a> 
-				or schedule a call at <a href="https://calendly.com/scalperium-partners" class="text-red-400 hover:text-red-300">calendly.com/scalperium-partners</a>
+				Need more info? Email us at <a href="mailto:partners@scalperium.com" class="text-blue-400 hover:text-blue-300">partners@scalperium.com</a>
+				or schedule a call at <a href="https://calendly.com/scalperium-partners" class="text-blue-400 hover:text-blue-300">calendly.com/scalperium-partners</a>
 			</p>
 		</div>
 	</div>
