@@ -1,5 +1,4 @@
 {
   "framework": "sveltekit",
-  "buildCommand": "npm run build",
-  "outputDirectory": "web-app/.vercel/output"
+  "buildCommand": "npm run build"
 }
