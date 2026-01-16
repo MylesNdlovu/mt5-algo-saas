@@ -191,13 +191,13 @@
 			if (data.success) {
 				botStatus = 'active';
 				sessionStartTime = Date.now();
-				alert(`✅ Algo started on ${data.successfulAccounts} account(s)`);
+				// Alert removed - status update is sufficient
 			} else {
-				alert(`⚠️ ${data.message}\n\nPlease check that:\n- At least one account is enabled in Settings\n- Your agent is online and connected`);
+				// Alert removed - error logged to console
 			}
 		} catch (error) {
 			console.error('Error starting algo:', error);
-			alert('❌ Failed to start algo. Please check your connection.');
+			// Alert removed - error logged to console
 		}
 	}
 
@@ -213,13 +213,13 @@
 
 			if (data.success) {
 				botStatus = 'stopped';
-				alert(`✅ Algo stopped on ${data.successfulAccounts} account(s)`);
+				// Alert removed - status update is sufficient
 			} else {
-				alert(`⚠️ ${data.message}`);
+				// Alert removed - error logged to console
 			}
 		} catch (error) {
 			console.error('Error stopping algo:', error);
-			alert('❌ Failed to stop algo');
+			// Alert removed - error logged to console
 		}
 	}
 
@@ -235,13 +235,13 @@
 
 			if (data.success) {
 				botStatus = 'paused';
-				alert(`⏸️ Algo paused on ${data.successfulAccounts} account(s)`);
+				// Alert removed - status update is sufficient
 			} else {
-				alert(`⚠️ ${data.message}`);
+				// Alert removed - error logged to console
 			}
 		} catch (error) {
 			console.error('Error pausing algo:', error);
-			alert('❌ Failed to pause algo');
+			// Alert removed - error logged to console
 		}
 	}
 
@@ -372,6 +372,31 @@
 
 				<!-- Bot Controls & Safety System -->
 				{#if accountData}
+					<!-- Deposit Required Banner (shown when balance is 0) -->
+					{#if accountData.account?.balance <= 0}
+						<div class="mb-4 px-4 py-3 bg-gradient-to-r from-yellow-900/50 to-orange-900/50 border-2 border-yellow-500 rounded-xl shadow-lg">
+							<div class="flex items-center justify-between gap-4">
+								<div class="flex items-center gap-3">
+									<svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+									</svg>
+									<div>
+										<div class="text-sm font-bold text-yellow-300">Deposit Required</div>
+										<div class="text-xs text-gray-300">Please fund your account to start trading</div>
+									</div>
+								</div>
+								<a
+									href="https://www.exness.com/deposits"
+									target="_blank"
+									rel="noopener noreferrer"
+									class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-gray-900 rounded-lg font-bold text-sm transition-all transform hover:scale-105 whitespace-nowrap"
+								>
+									Add Funds
+								</a>
+							</div>
+						</div>
+					{/if}
+
 					<div class="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-4">
 						<!-- Traffic Light Safety Indicator (Read-Only) -->
 						<div class="flex items-center gap-2 px-3 py-2 bg-gray-900 rounded-xl border-2 border-gray-700 shadow-lg">
@@ -437,8 +462,9 @@
 							{:else}
 								<button
 									on:click={startAlgo}
-									class="relative px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 rounded-xl shadow-lg shadow-green-500/50 transition-all transform hover:scale-105 border-2 border-green-400 animate-pulse"
-									title="Start Bot"
+									disabled={accountData.account?.balance <= 0}
+									class="relative px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 rounded-xl shadow-lg shadow-green-500/50 transition-all transform hover:scale-105 border-2 border-green-400 animate-pulse disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+									title={accountData.account?.balance <= 0 ? "Deposit required to start trading" : "Start Bot"}
 								>
 									<div class="flex items-center gap-2">
 										<!-- Play Icon -->
@@ -497,7 +523,7 @@
 								</div>
 								<div class="max-h-96 overflow-y-auto">
 									{#if accountData?.openTrades?.length > 0}
-										{#each accountData.openTrades.slice(0, 5) as trade}
+										{#each (accountData?.openTrades || []).slice(0, 5) as trade}
 											<div class="p-3 border-b border-gray-800 hover:bg-gray-800 transition-colors">
 												<div class="flex items-start justify-between">
 													<div class="flex-1">
@@ -555,8 +581,8 @@
 					{#if accountData}
 						<div class="mt-4 p-3 bg-black rounded-lg border border-gray-800">
 							<div class="text-xs text-gray-500 mb-1">Account</div>
-							<div class="text-sm text-white font-medium">#{accountData.account.accountNumber}</div>
-							<div class="text-xs" style="color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);">{accountData.account.broker}</div>
+							<div class="text-sm text-white font-medium">#{accountData?.account?.accountNumber || 'N/A'}</div>
+							<div class="text-xs" style="color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);">{accountData?.account?.broker || 'N/A'}</div>
 						</div>
 					{/if}
 				</div>
@@ -584,13 +610,16 @@
 						<span class="text-gray-300">Export Trades</span>
 					</button>
 					
-					<button on:click={() => { showSettings = true; showMenu = false; }} class="w-full flex items-center gap-3 p-3 mb-2 hover:bg-gray-800 rounded-lg transition-colors text-left">
-						<svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-						</svg>
-						<span class="text-gray-300">Bot Settings</span>
-					</button>
+					<!-- Bot Settings - Admin & Super Admin Only -->
+					{#if isAdmin}
+						<button on:click={() => { showSettings = true; showMenu = false; }} class="w-full flex items-center gap-3 p-3 mb-2 hover:bg-gray-800 rounded-lg transition-colors text-left">
+							<svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+							</svg>
+							<span class="text-gray-300">Bot Settings</span>
+						</button>
+					{/if}
 					
 					<a href="/connect" class="flex items-center gap-3 p-3 mb-2 hover:bg-gray-800 rounded-lg transition-colors">
 						<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -685,17 +714,17 @@
 					<div>
 						<div class="text-xs text-gray-500 mb-2 uppercase tracking-wider">Account Balance</div>
 						<div class="text-3xl sm:text-4xl font-bold" style="color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); font-family: 'Orbitron', sans-serif;">
-							${accountData.account.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+							${accountData?.account?.balance?.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) || '0.00'}
 						</div>
-						<div class="text-xs text-gray-600 mt-1">#{accountData.account.accountNumber}</div>
+						<div class="text-xs text-gray-600 mt-1">#{accountData?.account?.accountNumber || 'N/A'}</div>
 					</div>						<!-- Equity -->
 						<div>
 							<div class="text-xs text-gray-500 mb-2 uppercase tracking-wider">Current Equity</div>
 							<div class="text-3xl sm:text-4xl font-bold text-blue-400">
-								${accountData.account.equity.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+								${accountData?.account?.equity?.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) || '0.00'}
 							</div>
-							<div class="text-xs mt-1" class:text-green-400={(accountData.account.equity - accountData.account.balance) >= 0} class:text-red-400={(accountData.account.equity - accountData.account.balance) < 0}>
-								{formatProfit(accountData.account.equity - accountData.account.balance)} floating P/L
+							<div class="text-xs mt-1" class:text-green-400={(accountData?.account?.equity - accountData?.account?.balance) >= 0} class:text-red-400={(accountData?.account?.equity - accountData?.account?.balance) < 0}>
+								{formatProfit((accountData?.account?.equity || 0) - (accountData?.account?.balance || 0))} floating P/L
 							</div>
 						</div>
 
@@ -703,10 +732,10 @@
 						<div>
 							<div class="text-xs text-gray-500 mb-2 uppercase tracking-wider">Margin Level</div>
 							<div class="text-3xl sm:text-4xl font-bold text-green-400">
-								{accountData.account.marginLevel.toFixed(2)}%
+								{accountData?.account?.marginLevel?.toFixed(2) || '0.00'}%
 							</div>
 							<div class="text-xs text-gray-600 mt-1">
-								Free: ${((accountData.account.equity - accountData.account.margin) || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}
+								Free: ${(((accountData?.account?.equity || 0) - (accountData?.account?.margin || 0)) || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}
 							</div>
 						</div>
 					</div>
@@ -860,10 +889,10 @@
 
 			<!-- Open Trades Section -->
 			{#if tradeFilter === 'all' || tradeFilter === 'open'}
-				{#if accountData.openTrades && accountData.openTrades.length > 0}
+				{#if accountData?.openTrades && accountData.openTrades.length > 0}
 					<div class="mb-6">
 						<h2 class="text-xl font-bold mb-4" style="color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); font-family: 'Orbitron', sans-serif;">
-							Open Positions ({accountData.openTrades.length})
+							Open Positions ({accountData?.openTrades?.length || 0})
 						</h2>
 						<div class="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-green-800 overflow-hidden">
 							<div class="overflow-x-auto">
@@ -880,7 +909,7 @@
 										</tr>
 									</thead>
 									<tbody class="divide-y divide-gray-800">
-										{#each accountData.openTrades as trade}
+										{#each (accountData?.openTrades || []) as trade}
 											<tr class="hover:bg-gray-900/50 transition-colors cursor-pointer" on:click={() => selectedTrade = trade}>
 												<td class="px-4 py-3 text-sm font-medium text-white">{trade.symbol}</td>
 												<td class="px-4 py-3 text-sm">
@@ -984,7 +1013,7 @@
 
 			<!-- Closed Trades Section -->
 			{#if tradeFilter === 'all' || tradeFilter === 'closed'}
-				{#if accountData.closedTrades && accountData.closedTrades.length > 0}
+				{#if accountData?.closedTrades && accountData.closedTrades.length > 0}
 					<div class="mb-6">
 						<h2 class="text-xl font-bold mb-4" style="color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); font-family: 'Orbitron', sans-serif;">
 							Closed Trades ({filteredClosedTrades.length})
@@ -1046,7 +1075,7 @@
 			{/if}
 
 			<!-- Bot Performance Stats -->
-			{#if accountData.stats}
+			{#if accountData?.stats}
 				<div class="mt-6 bg-gradient-to-br from-gray-900 to-black rounded-xl p-6 border border-gray-800 shadow-lg">
 					<h2 class="text-xl font-bold mb-4" style="color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); font-family: 'Orbitron', sans-serif;">
 						Performance Stats
@@ -1054,19 +1083,19 @@
 					<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
 						<div>
 							<div class="text-xs text-gray-500 mb-1 uppercase tracking-wider">Total Trades</div>
-							<div class="text-2xl font-bold text-white">{accountData.stats.totalTrades}</div>
+							<div class="text-2xl font-bold text-white">{accountData?.stats?.totalTrades || 0}</div>
 						</div>
 						<div>
 							<div class="text-xs text-gray-500 mb-1 uppercase tracking-wider">Winning Trades</div>
-							<div class="text-2xl font-bold text-green-400">{accountData.stats.winningTrades}</div>
+							<div class="text-2xl font-bold text-green-400">{accountData?.stats?.winningTrades || 0}</div>
 						</div>
 						<div>
 							<div class="text-xs text-gray-500 mb-1 uppercase tracking-wider">Profit Factor</div>
-							<div class="text-2xl font-bold text-blue-400">{accountData.stats.profitFactor}</div>
+							<div class="text-2xl font-bold text-blue-400">{accountData?.stats?.profitFactor || 0}</div>
 						</div>
 						<div>
 							<div class="text-xs text-gray-500 mb-1 uppercase tracking-wider">Net Profit</div>
-							<div class="text-2xl font-bold text-green-400">${accountData.stats.netProfit.toLocaleString()}</div>
+							<div class="text-2xl font-bold text-green-400">${accountData?.stats?.netProfit?.toLocaleString() || '0'}</div>
 						</div>
 					</div>
 				</div>
@@ -1319,9 +1348,9 @@
 										<span class:text-green-400={account.status === 'ACTIVE'} class:text-gray-500={account.status !== 'ACTIVE'}>
 											{account.status}
 										</span>
-										{#if account.balance > 0}
+										{#if account?.balance > 0}
 											<span>•</span>
-											<span>${account.balance.toLocaleString()}</span>
+											<span>${account?.balance?.toLocaleString() || '0'}</span>
 										{/if}
 									</div>
 								</div>

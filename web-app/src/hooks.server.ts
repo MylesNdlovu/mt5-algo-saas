@@ -76,7 +76,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// Public routes (no auth required)
 	const publicRoutes = ['/', '/login', '/register', '/ib-login', '/ib-register'];
-	if (publicRoutes.includes(path)) {
+	const publicApiRoutes = ['/api/auth/login', '/api/auth/register', '/api/auth/logout'];
+
+	if (publicRoutes.includes(path) || publicApiRoutes.some(route => path.startsWith(route))) {
 		return resolve(event);
 	}
 
@@ -97,7 +99,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Role checks
 	const isAdmin = sessionUser.role === 'SUPER_ADMIN' || sessionUser.role === 'ADMIN';
 	const isIB = sessionUser.role === 'IB';
-	const isRegularUser = sessionUser.role === 'USER' || sessionUser.role === 'TRADER';
+	const isRegularUser = sessionUser.role === 'TRADER'; // All regular trading users
 
 	// Admin-only routes
 	const adminOnlyRoutes = ['/admin', '/agents', '/automations', '/ib-partners'];

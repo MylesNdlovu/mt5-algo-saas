@@ -151,8 +151,8 @@ function mapOldRoleToUserRole(role: string): UserRole | 'IB' {
 	const roleMap: Record<string, UserRole | 'IB'> = {
 		'admin': UserRole.ADMIN,
 		'ADMIN': UserRole.ADMIN,
-		'user': UserRole.USER,
-		'USER': UserRole.USER,
+		'user': UserRole.TRADER, // Legacy USER role maps to TRADER
+		'USER': UserRole.TRADER,
 		'trader': UserRole.TRADER,
 		'TRADER': UserRole.TRADER,
 		'vip': UserRole.TRADER, // VIP maps to TRADER
@@ -162,7 +162,7 @@ function mapOldRoleToUserRole(role: string): UserRole | 'IB' {
 		'super_admin': UserRole.SUPER_ADMIN,
 		'SUPER_ADMIN': UserRole.SUPER_ADMIN
 	};
-	return roleMap[role] || UserRole.USER;
+	return roleMap[role] || UserRole.TRADER; // Default to TRADER for unknown roles
 }
 
 /**
@@ -204,7 +204,7 @@ export async function requireAuth(event: RequestEvent): Promise<AuthUser | null>
 				email: sessionUser.email,
 				firstName: sessionUser.name || 'IB',
 				lastName: 'Partner',
-				role: UserRole.USER, // IB role doesn't exist in UserRole enum for AuthUser
+				role: UserRole.TRADER, // IB role doesn't exist in UserRole enum for AuthUser
 				ibPartnerId: null
 			};
 		}

@@ -1,71 +1,115 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { PrismaClient } from '@prisma/client';
+import { getSessionUser } from '$lib/server/auth';
+import { validateAccountLimit } from '$lib/server/account-validator';
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+const prisma = new PrismaClient();
+
+/**
+ * POST /api/account/connect
+ * Connects and saves a new MT5 account with 5 account limit enforcement
+ */
+export const POST: RequestHandler = async ({ request, cookies }) => {
+	const sessionUser = getSessionUser(cookies);
+
+	if (!sessionUser) {
+		return json({ success: false, error: 'Unauthorized' }, { status: 401 });
+	}
+
 	try {
-		const { broker, server, accountNumber, password } = await request.json();
+		const { broker, server, accountNumber } = await request.json();
 
 		// Validate input
-		if (!broker || !server || !accountNumber || !password) {
-			return json({ success: false, error: 'All fields are required' }, { status: 400 });
-		}
-
-		// TODO: Get user from session
-		// const userId = locals.user?.id;
-		// if (!userId) {
-		// 	return json({ success: false, error: 'Unauthorized' }, { status: 401 });
-		// }
-
-		// Send connection request to C# agent
-		const agentResponse = await fetch('http://localhost:5000/api/account/connect', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				// 'X-API-Key': process.env.AGENT_API_KEY || ''
-			},
-			body: JSON.stringify({
-				broker,
-				server,
-				accountNumber,
-				password
-				// userId
-			})
-		});
-
-		const agentResult = await agentResponse.json();
-
-		if (!agentResponse.ok) {
+		if (!broker || !server || !accountNumber) {
 			return json(
-				{
-					success: false,
-					error: agentResult.error || 'Failed to connect to MT5'
-				},
-				{ status: agentResponse.status }
+				{ success: false, error: 'Broker, server, and account number are required' },
+				{ status: 400 }
 			);
 		}
 
-		// TODO: Save connection details to database
-		// await db.account.create({
-		// 	data: {
-		// 		userId,
-		// 		broker,
-		// 		server,
-		// 		accountNumber,
-		// 		status: 'connected'
-		// 	}
-		// });
+		// GUARD: Check 5 account limit
+		const limitCheck = await validateAccountLimit(sessionUser.userId);
+		if (!limitCheck.canAdd) {
+			return json(
+				{
+					success: false,
+					error: limitCheck.message,
+					current: limitCheck.current,
+					limit: limitCheck.limit
+				},
+				{ status: 403 }
+			);
+		}
+
+		// Check if account already exists
+		const existingAccount = await prisma.mT5Account.findUnique({
+			where: { accountNumber }
+		});
+
+		if (existingAccount) {
+			// Account already registered - check if it belongs to this user
+			if (existingAccount.userId === sessionUser.userId) {
+				return json(
+					{
+						success: false,
+						error: 'This MT5 account is already connected to your account'
+					},
+					{ status: 409 }
+				);
+			} else {
+				return json(
+					{
+						success: false,
+						error: 'This MT5 account is already registered to another user'
+					},
+					{ status: 409 }
+				);
+			}
+		}
+
+		// Save MT5 account to database
+		const newAccount = await prisma.mT5Account.create({
+			data: {
+				userId: sessionUser.userId,
+				accountNumber,
+				login: accountNumber, // In MT5, login is typically the account number
+				broker,
+				serverName: server,
+				status: 'PENDING', // Will be activated when agent connects
+				balance: 0,
+				equity: 0,
+				isEnabledForTrading: false
+			}
+		});
+
+		console.log('[Account Connect] New MT5 account added:', {
+			userId: sessionUser.userId,
+			accountNumber: newAccount.accountNumber,
+			broker: newAccount.broker,
+			accountsUsed: limitCheck.current + 1,
+			accountsLimit: limitCheck.limit
+		});
 
 		return json({
 			success: true,
-			message: 'Successfully connected to MT5',
-			data: agentResult
+			message: 'MT5 account connected successfully',
+			account: {
+				id: newAccount.id,
+				accountNumber: newAccount.accountNumber,
+				broker: newAccount.broker,
+				serverName: newAccount.serverName,
+				status: newAccount.status
+			},
+			accountsUsed: limitCheck.current + 1,
+			accountsLimit: limitCheck.limit
 		});
 	} catch (error) {
-		console.error('MT5 connection error:', error);
+		console.error('[Account Connect] Error:', error);
 		return json(
 			{
 				success: false,
-				error: 'Internal server error'
+				error: 'Failed to connect MT5 account'
 			},
 			{ status: 500 }
 		);

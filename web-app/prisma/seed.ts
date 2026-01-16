@@ -112,14 +112,14 @@ async function main() {
 	// ============================================================================
 	console.log('🧪 Creating Demo Test Users...');
 
-	// Simple USER role for testing
+	// Simple TRADER role for testing (consolidated from USER)
 	const demoUser = await prisma.user.create({
 		data: {
 			email: 'user@scalperium.com',
 			passwordHash: await bcrypt.hash('user123', 10),
 			firstName: 'Demo',
 			lastName: 'User',
-			role: UserRole.USER,
+			role: UserRole.TRADER,
 			phone: '+1-555-0002',
 			isActive: true,
 			subscriptionTier: SubscriptionTier.FREE,
@@ -127,7 +127,7 @@ async function main() {
 		}
 	});
 
-	// Simple TRADER role for testing
+	// Another TRADER for testing
 	const demoTrader = await prisma.user.create({
 		data: {
 			email: 'trader@scalperium.com',
@@ -815,6 +815,201 @@ async function main() {
 	console.log('✅ Created Prizes');
 
 	// ============================================================================
+	// 10. Create Anonymous Accounts (IB Privacy Layer)
+	// ============================================================================
+	console.log('🔐 Creating Anonymous Accounts...');
+
+	const anonAccount1 = await prisma.anonymousAccount.create({
+		data: {
+			anonymousId: 'ACC-8F3D2A1B',
+			userId: user1.id,
+			mt5AccountNumber: mt5Account1.accountNumber,
+			ibPartnerId: ibPartner1.id,
+			isActive: true,
+			registeredAt: user1.createdAt
+		}
+	});
+
+	const anonAccount2 = await prisma.anonymousAccount.create({
+		data: {
+			anonymousId: 'ACC-7E2C9B4F',
+			userId: user2.id,
+			mt5AccountNumber: mt5Account2.accountNumber,
+			ibPartnerId: ibPartner1.id,
+			isActive: true,
+			registeredAt: user2.createdAt
+		}
+	});
+
+	const anonAccount3 = await prisma.anonymousAccount.create({
+		data: {
+			anonymousId: 'ACC-9A1F5C8D',
+			userId: user3.id,
+			mt5AccountNumber: mt5Account3.accountNumber,
+			ibPartnerId: ibPartner2.id,
+			isActive: true,
+			registeredAt: user3.createdAt
+		}
+	});
+
+	const anonAccount4 = await prisma.anonymousAccount.create({
+		data: {
+			anonymousId: 'ACC-4B6E3D9A',
+			userId: user4.id,
+			mt5AccountNumber: mt5Account4.accountNumber,
+			ibPartnerId: ibPartner2.id,
+			isActive: false, // Inactive account
+			registeredAt: user4.createdAt
+		}
+	});
+
+	console.log('✅ Created 4 Anonymous Accounts');
+
+	// ============================================================================
+	// 11. Create IB Commission Records
+	// ============================================================================
+	console.log('💰 Creating IB Commission Records...');
+
+	// Alpha Trade IB - Current Month
+	const currentMonth = new Date();
+	currentMonth.setDate(1);
+	currentMonth.setHours(0, 0, 0, 0);
+	const nextMonth = new Date(currentMonth);
+	nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+	await prisma.iBCommission.create({
+		data: {
+			ibPartnerId: ibPartner1.id,
+			anonymousAccountId: anonAccount1.id,
+			period: currentMonth,
+			periodEnd: nextMonth,
+			tradingVolume: 125.5, // lots
+			numberOfTrades: 156,
+			averageSpread: 1.8,
+			commissionRate: 0.5, // 0.5%
+			grossCommission: 2260.00,
+			platformFee: 226.00, // 10% platform fee
+			netCommission: 2034.00,
+			isPaid: false
+		}
+	});
+
+	await prisma.iBCommission.create({
+		data: {
+			ibPartnerId: ibPartner1.id,
+			anonymousAccountId: anonAccount2.id,
+			period: currentMonth,
+			periodEnd: nextMonth,
+			tradingVolume: 89.3,
+			numberOfTrades: 89,
+			averageSpread: 1.9,
+			commissionRate: 0.5,
+			grossCommission: 1694.70,
+			platformFee: 169.47,
+			netCommission: 1525.23,
+			isPaid: false
+		}
+	});
+
+	// Gold King IB - Current Month
+	await prisma.iBCommission.create({
+		data: {
+			ibPartnerId: ibPartner2.id,
+			anonymousAccountId: anonAccount3.id,
+			period: currentMonth,
+			periodEnd: nextMonth,
+			tradingVolume: 342.8,
+			numberOfTrades: 342,
+			averageSpread: 1.7,
+			commissionRate: 0.5,
+			grossCommission: 5827.60,
+			platformFee: 582.76,
+			netCommission: 5244.84,
+			isPaid: false
+		}
+	});
+
+	await prisma.iBCommission.create({
+		data: {
+			ibPartnerId: ibPartner2.id,
+			anonymousAccountId: anonAccount4.id,
+			period: currentMonth,
+			periodEnd: nextMonth,
+			tradingVolume: 198.6,
+			numberOfTrades: 198,
+			averageSpread: 1.8,
+			commissionRate: 0.5,
+			grossCommission: 3574.80,
+			platformFee: 357.48,
+			netCommission: 3217.32,
+			isPaid: false
+		}
+	});
+
+	// Previous Month Commissions (for growth comparison)
+	const previousMonth = new Date(currentMonth);
+	previousMonth.setMonth(previousMonth.getMonth() - 1);
+
+	await prisma.iBCommission.create({
+		data: {
+			ibPartnerId: ibPartner1.id,
+			anonymousAccountId: anonAccount1.id,
+			period: previousMonth,
+			periodEnd: currentMonth,
+			tradingVolume: 98.2,
+			numberOfTrades: 134,
+			averageSpread: 1.9,
+			commissionRate: 0.5,
+			grossCommission: 1865.80,
+			platformFee: 186.58,
+			netCommission: 1679.22,
+			isPaid: true,
+			paidAt: new Date(currentMonth.getTime() + 5 * 24 * 60 * 60 * 1000), // Paid 5 days into current month
+			paymentReference: 'PAY-2025-12-ALPHA'
+		}
+	});
+
+	await prisma.iBCommission.create({
+		data: {
+			ibPartnerId: ibPartner1.id,
+			anonymousAccountId: anonAccount2.id,
+			period: previousMonth,
+			periodEnd: currentMonth,
+			tradingVolume: 76.4,
+			numberOfTrades: 92,
+			averageSpread: 2.0,
+			commissionRate: 0.5,
+			grossCommission: 1528.00,
+			platformFee: 152.80,
+			netCommission: 1375.20,
+			isPaid: true,
+			paidAt: new Date(currentMonth.getTime() + 5 * 24 * 60 * 60 * 1000),
+			paymentReference: 'PAY-2025-12-ALPHA'
+		}
+	});
+
+	await prisma.iBCommission.create({
+		data: {
+			ibPartnerId: ibPartner2.id,
+			anonymousAccountId: anonAccount3.id,
+			period: previousMonth,
+			periodEnd: currentMonth,
+			tradingVolume: 289.5,
+			numberOfTrades: 298,
+			averageSpread: 1.8,
+			commissionRate: 0.5,
+			grossCommission: 5211.00,
+			platformFee: 521.10,
+			netCommission: 4689.90,
+			isPaid: true,
+			paidAt: new Date(currentMonth.getTime() + 5 * 24 * 60 * 60 * 1000),
+			paymentReference: 'PAY-2025-12-GOLD'
+		}
+	});
+
+	console.log('✅ Created 7 IB Commission Records');
+
+	// ============================================================================
 	// Summary
 	// ============================================================================
 	console.log('\n✅ Database seeded successfully!\n');
@@ -823,12 +1018,14 @@ async function main() {
 	console.log(`   - ${1} Admin User`);
 	console.log(`   - ${3} Demo Test Users (for role testing)`);
 	console.log(`   - ${6} Regular Users (4 under IB, 2 direct)`);
-	console.log(`   - ${6} MT5 Accounts`);
+	console.log(`   - ${11} MT5 Accounts`);
 	console.log(`   - ${6} C# Agents (3 online, 1 offline, 1 error)`);
 	console.log(`   - ${3} Sample Trades`);
 	console.log(`   - ${3} Leaderboard Entries`);
 	console.log(`   - ${3} Automations`);
-	console.log(`   - ${4} Prizes\n`);
+	console.log(`   - ${4} Prizes`);
+	console.log(`   - ${4} Anonymous Accounts (IB privacy layer)`);
+	console.log(`   - ${7} IB Commission Records (current + previous months)\n`);
 
 	console.log('🔑 Simple Demo Login Credentials (for testing role permissions):');
 	console.log('   SUPER_ADMIN: admin@scalperium.com / admin123');

@@ -4,16 +4,17 @@
 	let loading = false;
 	let connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error' = 'disconnected';
 	let errorMessage = '';
-	
+	let accountsUsed = 0;
+	let accountsLimit = 5;
+
 	// Form fields
 	let broker = '';
 	let server = '';
 	let accountNumber = '';
-	let password = '';
 
 	async function handleConnect() {
-		if (!broker || !server || !accountNumber || !password) {
-			errorMessage = 'Please fill in all fields';
+		if (!broker || !server || !accountNumber) {
+			errorMessage = 'Please fill in broker, server, and account number';
 			return;
 		}
 
@@ -28,8 +29,7 @@
 				body: JSON.stringify({
 					broker,
 					server,
-					accountNumber,
-					password
+					accountNumber
 				})
 			});
 
@@ -37,6 +37,8 @@
 
 			if (response.ok && result.success) {
 				connectionStatus = 'connected';
+				accountsUsed = result.accountsUsed || 0;
+				accountsLimit = result.accountsLimit || 5;
 				// Show success for 2 seconds then redirect
 				setTimeout(() => {
 					goto('/dashboard');
@@ -44,6 +46,11 @@
 			} else {
 				connectionStatus = 'error';
 				errorMessage = result.error || 'Failed to connect to MT5';
+				// Update account limits if provided (e.g., when limit is reached)
+				if (result.current !== undefined && result.limit !== undefined) {
+					accountsUsed = result.current;
+					accountsLimit = result.limit;
+				}
 			}
 		} catch (err) {
 			connectionStatus = 'error';
@@ -51,11 +58,6 @@
 		} finally {
 			loading = false;
 		}
-	}
-
-	function handleTestConnection() {
-		// Quick connection test without saving
-		alert('Test connection feature - validates credentials without saving');
 	}
 </script>
 
@@ -103,6 +105,18 @@
 
 		<!-- Connection Form -->
 		<div class="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-2xl p-6 sm:p-8 border border-gray-700/50">
+			<!-- Account Limit Display -->
+			{#if accountsUsed > 0}
+				<div class="mb-4 p-3 bg-gray-900/50 border border-gray-600 rounded-lg">
+					<div class="flex items-center justify-between">
+						<span class="text-sm text-gray-400">Accounts Connected</span>
+						<span class="text-sm font-bold" class:text-yellow-400={accountsUsed >= accountsLimit} class:text-blue-400={accountsUsed < accountsLimit}>
+							{accountsUsed}/{accountsLimit}
+						</span>
+					</div>
+				</div>
+			{/if}
+
 			<form on:submit|preventDefault={handleConnect} class="space-y-5">
 				<!-- Broker Name -->
 				<div>
@@ -148,22 +162,7 @@
 					disabled={loading || connectionStatus === 'connected'}
 					class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
 					/>
-				</div>
-
-				<!-- Password -->
-				<div>
-					<label for="password" class="block text-sm font-medium text-gray-300 mb-2">
-						Password
-					</label>
-					<input
-						id="password"
-						type="password"
-						bind:value={password}
-					placeholder="••••••••"
-					disabled={loading || connectionStatus === 'connected'}
-					class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
-					/>
-					<p class="text-xs text-gray-500 mt-1">Your MT5 account password</p>
+					<p class="text-xs text-gray-500 mt-1">Your account will be linked to your Windows agent</p>
 				</div>
 
 				<!-- Buttons -->

@@ -11,7 +11,7 @@ export interface User {
 	passwordHash: string;
 	firstName: string;
 	lastName: string;
-	role: 'ADMIN' | 'USER';
+	role: 'ADMIN' | 'TRADER';
 	phone?: string;
 	
 	// Subscription
@@ -193,7 +193,7 @@ export function updateUserTradingStats(
 // Get all active traders (excluding admins)
 export function getActiveTraders(): User[] {
 	const users = loadUsers();
-	return users.filter(u => u.role === 'USER' && u.isActive && u.status === 'ACTIVE');
+	return users.filter(u => u.role === 'TRADER' && u.isActive && u.status === 'ACTIVE');
 }
 
 // LEADERBOARD FUNCTIONS
@@ -448,7 +448,7 @@ export function seedDemoUsers(): void {
 			passwordHash: 'Demo123!',
 			firstName: demo.firstName,
 			lastName: demo.lastName,
-			role: 'USER',
+			role: 'TRADER',
 			subscriptionTier: 'PREMIUM',
 			monthlyFee: 99,
 			totalTrades: demo.totalTrades,

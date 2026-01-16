@@ -11,7 +11,7 @@
 	$: isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
 	$: isSuperAdmin = user?.role === 'SUPER_ADMIN';
 	$: isIB = user?.role === 'IB';
-	$: isRegularUser = user?.role === 'USER' || user?.role === 'TRADER';
+	$: isRegularUser = user?.role === 'TRADER'; // All regular trading users
 
 	async function handleLogout() {
 		await fetch('/api/auth/logout', { method: 'POST' });
@@ -63,8 +63,8 @@
 					🔔 Notifications
 				</a>
 				<a
-					href="/ib-partners"
-					class="px-3 py-2 rounded-lg transition-all font-medium {currentPath === '/ib-partners' ? 'bg-red-600/20 text-white border border-red-600/50' : 'text-gray-200 hover:bg-gray-800 hover:text-white'}"
+					href="/admin/ib-partners"
+					class="px-3 py-2 rounded-lg transition-all font-medium {currentPath.startsWith('/admin/ib-partners') ? 'bg-red-600/20 text-white border border-red-600/50' : 'text-gray-200 hover:bg-gray-800 hover:text-white'}"
 				>
 					🤝 IB Partners
 				</a>
@@ -149,9 +149,9 @@
 					🔔 Notifications
 				</a>
 				<a
-					href="/ib-partners"
+					href="/admin/ib-partners"
 					on:click={() => showMenu = false}
-					class="block px-4 py-3 rounded-lg font-medium transition-all {currentPath === '/ib-partners' ? 'bg-red-600/20 text-white border border-red-600/50' : 'text-gray-100 hover:bg-gray-800 hover:text-white'}"
+					class="block px-4 py-3 rounded-lg font-medium transition-all {currentPath.startsWith('/admin/ib-partners') ? 'bg-red-600/20 text-white border border-red-600/50' : 'text-gray-100 hover:bg-gray-800 hover:text-white'}"
 				>
 					🤝 IB Partners
 				</a>

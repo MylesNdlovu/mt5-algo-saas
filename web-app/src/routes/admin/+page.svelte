@@ -999,23 +999,23 @@
             <div class="bg-gradient-to-br from-blue-900/30 to-black p-6 rounded-lg border border-blue-800/50">
               <div class="text-sm text-gray-400 mb-2">Total IB Partners</div>
               <div class="text-3xl font-bold mb-1 text-blue-400">
-                {ibOverallStats.totalIBPartners}
+                {ibOverallStats.totalIBPartners || 0}
               </div>
-              <div class="text-xs text-blue-300">{ibOverallStats.activeIBPartners} active</div>
+              <div class="text-xs text-blue-300">{ibOverallStats.activeIBPartners || 0} active</div>
             </div>
 
             <div class="bg-gradient-to-br from-blue-900/30 to-black p-6 rounded-lg border border-blue-800/50">
               <div class="text-sm text-gray-400 mb-2">Traders Referred</div>
               <div class="text-3xl font-bold mb-1 text-blue-400">
-                {ibOverallStats.totalTradersReferred}
+                {ibOverallStats.totalTradersReferred || 0}
               </div>
-              <div class="text-xs text-green-400">{ibOverallStats.totalActiveTradersReferred} active</div>
+              <div class="text-xs text-green-400">{ibOverallStats.totalActiveTradersReferred || 0} active</div>
             </div>
 
             <div class="bg-gradient-to-br from-blue-900/30 to-black p-6 rounded-lg border border-blue-800/50">
               <div class="text-sm text-gray-400 mb-2">Commissions Paid</div>
               <div class="text-3xl font-bold mb-1 text-blue-400">
-                ${ibOverallStats.totalCommissionsPaid.toLocaleString()}
+                ${(ibOverallStats.totalCommissionsPaid || 0).toLocaleString()}
               </div>
               <div class="text-xs text-gray-400">All time</div>
             </div>
@@ -1023,7 +1023,7 @@
             <div class="bg-gradient-to-br from-blue-900/30 to-black p-6 rounded-lg border border-blue-800/50">
               <div class="text-sm text-gray-400 mb-2">IB Revenue</div>
               <div class="text-3xl font-bold mb-1 text-blue-400">
-                ${ibOverallStats.estimatedMonthlyRevenue.toLocaleString()}
+                ${(ibOverallStats.totalMonthlyRevenue || 0).toLocaleString()}
               </div>
               <div class="text-xs text-gray-400">Monthly from IBs</div>
             </div>

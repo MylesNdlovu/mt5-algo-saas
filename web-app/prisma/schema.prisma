@@ -11,8 +11,7 @@ datasource db {
 
 enum UserRole {
   ADMIN
-  USER
-  TRADER
+  TRADER // All regular trading users (consolidated from USER)
   IB
   SUPER_ADMIN
 }
@@ -85,7 +84,7 @@ model User {
   passwordHash String
   firstName    String
   lastName     String
-  role         UserRole @default(USER)
+  role         UserRole @default(TRADER)
   phone        String?
 
   // IB Referral
@@ -124,6 +123,7 @@ model User {
   leaderboardStats     LeaderboardEntry[]
   agents               Agent[] // C# MT5 automation agents
   accountAssignments   MT5AccountAssignment[] // Pool agent account assignments
+  anonymousAccounts    AnonymousAccount[] // Anonymous accounts for IB tracking
 
   @@index([email])
   @@index([role])
@@ -484,7 +484,10 @@ model IBPartner {
   approvedBy String? // Admin ID who approved
 
   // Relations
-  users User[]
+  users              User[]
+  anonymousAccounts  AnonymousAccount[]
+  commissions        IBCommission[]
+  commissionRates    IBCommissionRate[]
 
   @@index([email])
   @@index([ibCode])
@@ -655,4 +658,108 @@ model Prize {
 
   @@unique([period, rank])
   @@index([period])
+}
+
+// Global platform settings (Admin/Super Admin only)
+model GlobalSettings {
+  id                 String   @id @default(uuid())
+  settingKey         String   @unique // e.g., "MINIMUM_DEPOSIT"
+  settingValue       String // Stored as string, parsed by application
+  description        String?
+  updatedBy          String? // Admin ID who last updated
+  updatedAt          DateTime @updatedAt
+  createdAt          DateTime @default(now())
+
+  @@index([settingKey])
+}
+
+// Anonymous account tracking for IB partners
+// IBs see these anonymized IDs instead of real MT5 account numbers
+model AnonymousAccount {
+  id               String   @id @default(uuid())
+  anonymousId      String   @unique // e.g., "ACC-8F3D2A1B" - shown to IB
+
+  // Real account linkage (hidden from IB)
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mt5AccountNumber String   @unique // Real MT5 account number (Admin only)
+
+  // IB assignment
+  ibPartnerId      String
+  ibPartner        IBPartner @relation(fields: [ibPartnerId], references: [id])
+
+  // Account status
+  isActive         Boolean   @default(true)
+  registeredAt     DateTime  @default(now())
+
+  // Relationships
+  commissions      IBCommission[]
+
+  @@index([ibPartnerId])
+  @@index([userId])
+}
+
+// IB Commission tracking
+model IBCommission {
+  id                String   @id @default(uuid())
+
+  // IB Partner
+  ibPartnerId       String
+  ibPartner         IBPartner @relation(fields: [ibPartnerId], references: [id])
+
+  // Anonymous account (what IB sees)
+  anonymousAccountId String
+  anonymousAccount   AnonymousAccount @relation(fields: [anonymousAccountId], references: [id], onDelete: Cascade)
+
+  // Trading metrics for the period
+  period            DateTime // Period start date (e.g., month start)
+  periodEnd         DateTime // Period end date
+
+  tradingVolume     Float    @default(0) // Total volume in lots
+  numberOfTrades    Int      @default(0) // Number of trades executed
+  averageSpread     Float    @default(0) // Average spread in points
+
+  // Commission calculation
+  commissionRate    Float // IB's commission percentage
+  grossCommission   Float    @default(0) // Calculated commission before fees
+  platformFee       Float    @default(0) // Platform fee deducted
+  netCommission     Float    @default(0) // Net commission paid to IB
+
+  // Payment status
+  isPaid            Boolean  @default(false)
+  paidAt            DateTime?
+  paymentReference  String? // Transaction ID or reference
+
+  // Metadata
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([ibPartnerId, period])
+  @@index([anonymousAccountId])
+  @@index([period])
+  @@unique([anonymousAccountId, period])
+}
+
+// IB Commission rate settings (configurable per IB)
+model IBCommissionRate {
+  id              String    @id @default(uuid())
+  ibPartnerId     String
+  ibPartner       IBPartner @relation(fields: [ibPartnerId], references: [id], onDelete: Cascade)
+
+  // Rate configuration
+  commissionRate  Float     @default(0) // Percentage (e.g., 0.5 = 0.5%)
+  minVolume       Float     @default(0) // Minimum volume for this rate
+  maxVolume       Float? // Maximum volume (null = unlimited)
+
+  // Validity period
+  effectiveFrom   DateTime  @default(now())
+  effectiveTo     DateTime?
+
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([ibPartnerId])
+  @@index([effectiveFrom, effectiveTo])
 }
