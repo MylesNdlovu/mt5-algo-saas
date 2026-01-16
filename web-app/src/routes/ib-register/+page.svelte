@@ -12,13 +12,79 @@
 		message: ''
 	};
 
+	// Document uploads
+	let documents = {
+		company: null as { url: string; name: string } | null,
+		id: null as { url: string; name: string } | null,
+		kyc: null as { url: string; name: string } | null
+	};
+
+	let uploadingDoc: string | null = null;
 	let errors: Record<string, string> = {};
 	let isSubmitting = false;
 	let successMessage = '';
 
+	// Generate temp ID for grouping uploaded files
+	const tempId = Math.random().toString(36).substring(2, 15);
+
+	async function uploadDocument(file: File, type: 'company' | 'id' | 'kyc') {
+		uploadingDoc = type;
+
+		try {
+			const formDataUpload = new FormData();
+			formDataUpload.append('file', file);
+			formDataUpload.append('type', type);
+			formDataUpload.append('tempId', tempId);
+
+			const response = await fetch('/api/ib/upload', {
+				method: 'POST',
+				body: formDataUpload
+			});
+
+			const result = await response.json();
+
+			if (result.success) {
+				documents[type] = { url: result.url, name: file.name };
+			} else {
+				errors[`doc_${type}`] = result.error || 'Upload failed';
+			}
+		} catch (error) {
+			errors[`doc_${type}`] = 'Network error during upload';
+		} finally {
+			uploadingDoc = null;
+		}
+	}
+
+	function handleFileSelect(event: Event, type: 'company' | 'id' | 'kyc') {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (file) {
+			// Validate file
+			const maxSize = 10 * 1024 * 1024; // 10MB
+			const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+
+			if (file.size > maxSize) {
+				errors[`doc_${type}`] = 'File too large (max 10MB)';
+				return;
+			}
+
+			if (!allowedTypes.includes(file.type)) {
+				errors[`doc_${type}`] = 'Invalid file type (PDF, PNG, JPG only)';
+				return;
+			}
+
+			delete errors[`doc_${type}`];
+			uploadDocument(file, type);
+		}
+	}
+
+	function removeDocument(type: 'company' | 'id' | 'kyc') {
+		documents[type] = null;
+	}
+
 	async function handleSubmit() {
 		errors = {};
-		
+
 		// Validation
 		if (!formData.email) errors.email = 'Email is required';
 		if (!formData.password) errors.password = 'Password is required';
@@ -29,25 +95,32 @@
 		if (!formData.companyName) errors.companyName = 'Company name is required';
 		if (!formData.contactName) errors.contactName = 'Contact name is required';
 		if (!formData.phone) errors.phone = 'Phone number is required';
-		
+
+		// Document validation - at least company registration is required
+		if (!documents.company) {
+			errors.doc_company = 'Company registration document is required';
+		}
+
 		if (Object.keys(errors).length > 0) return;
-		
+
 		isSubmitting = true;
-		
+
 		try {
 			const response = await fetch('/api/ib/register', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(formData)
+				body: JSON.stringify({
+					...formData,
+					companyDocument: documents.company?.url,
+					idDocument: documents.id?.url,
+					kycDocument: documents.kyc?.url
+				})
 			});
-			
+
 			const result = await response.json();
-			
+
 			if (response.ok) {
-				successMessage = 'Registration successful! Your application is pending approval. We will contact you within 48 hours.';
-				setTimeout(() => {
-					goto('/ib-login');
-				}, 3000);
+				successMessage = result.message || 'Registration successful! Please check your email to verify your account.';
 			} else {
 				errors.submit = result.error || 'Registration failed';
 			}
@@ -194,7 +267,7 @@
 					<h3 class="text-xl font-bold text-red-400 mb-4" style="font-family: 'Orbitron', sans-serif;">
 						Business Details
 					</h3>
-					
+
 					<div class="space-y-4">
 						<div>
 							<label class="block text-sm text-gray-400 mb-2">Current Number of Active Traders</label>
@@ -210,7 +283,7 @@
 								<option value="2500+">2,500+ traders</option>
 							</select>
 						</div>
-						
+
 						<div>
 							<label class="block text-sm text-gray-400 mb-2">Additional Information</label>
 							<textarea
@@ -222,7 +295,175 @@
 						</div>
 					</div>
 				</div>
-				
+
+				<!-- KYC Documents -->
+				<div>
+					<h3 class="text-xl font-bold text-red-400 mb-4" style="font-family: 'Orbitron', sans-serif;">
+						Verification Documents
+					</h3>
+					<p class="text-sm text-gray-400 mb-4">
+						Upload your KYC documents for verification. Accepted formats: PDF, PNG, JPG (max 10MB each)
+					</p>
+
+					<div class="space-y-4">
+						<!-- Company Registration Document -->
+						<div>
+							<label class="block text-sm text-gray-400 mb-2">
+								Company Registration Document *
+								<span class="text-gray-500">(Certificate of Incorporation, Business License)</span>
+							</label>
+							{#if documents.company}
+								<div class="flex items-center gap-3 p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
+									<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+									</svg>
+									<span class="text-green-400 text-sm flex-1 truncate">{documents.company.name}</span>
+									<button
+										type="button"
+										on:click={() => removeDocument('company')}
+										class="text-red-400 hover:text-red-300 text-sm"
+									>
+										Remove
+									</button>
+								</div>
+							{:else}
+								<label class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-all {errors.doc_company ? 'border-red-500 bg-red-500/5' : 'border-gray-700 hover:border-red-500/50 bg-black/50'}">
+									{#if uploadingDoc === 'company'}
+										<div class="flex items-center gap-2">
+											<svg class="animate-spin h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+												<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+												<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+											</svg>
+											<span class="text-gray-400">Uploading...</span>
+										</div>
+									{:else}
+										<div class="flex flex-col items-center">
+											<svg class="w-8 h-8 text-gray-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+											</svg>
+											<span class="text-sm text-gray-400">Click to upload or drag and drop</span>
+										</div>
+									{/if}
+									<input
+										type="file"
+										accept=".pdf,.png,.jpg,.jpeg"
+										class="hidden"
+										on:change={(e) => handleFileSelect(e, 'company')}
+										disabled={uploadingDoc !== null}
+									>
+								</label>
+							{/if}
+							{#if errors.doc_company}
+								<p class="text-red-400 text-sm mt-1">{errors.doc_company}</p>
+							{/if}
+						</div>
+
+						<!-- ID Document -->
+						<div>
+							<label class="block text-sm text-gray-400 mb-2">
+								ID/Passport Copy
+								<span class="text-gray-500">(Director or Authorized Representative)</span>
+							</label>
+							{#if documents.id}
+								<div class="flex items-center gap-3 p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
+									<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+									</svg>
+									<span class="text-green-400 text-sm flex-1 truncate">{documents.id.name}</span>
+									<button
+										type="button"
+										on:click={() => removeDocument('id')}
+										class="text-red-400 hover:text-red-300 text-sm"
+									>
+										Remove
+									</button>
+								</div>
+							{:else}
+								<label class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-all {errors.doc_id ? 'border-red-500 bg-red-500/5' : 'border-gray-700 hover:border-red-500/50 bg-black/50'}">
+									{#if uploadingDoc === 'id'}
+										<div class="flex items-center gap-2">
+											<svg class="animate-spin h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+												<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+												<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+											</svg>
+											<span class="text-gray-400">Uploading...</span>
+										</div>
+									{:else}
+										<div class="flex flex-col items-center">
+											<svg class="w-8 h-8 text-gray-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+											</svg>
+											<span class="text-sm text-gray-400">Click to upload or drag and drop</span>
+										</div>
+									{/if}
+									<input
+										type="file"
+										accept=".pdf,.png,.jpg,.jpeg"
+										class="hidden"
+										on:change={(e) => handleFileSelect(e, 'id')}
+										disabled={uploadingDoc !== null}
+									>
+								</label>
+							{/if}
+							{#if errors.doc_id}
+								<p class="text-red-400 text-sm mt-1">{errors.doc_id}</p>
+							{/if}
+						</div>
+
+						<!-- Additional KYC Document -->
+						<div>
+							<label class="block text-sm text-gray-400 mb-2">
+								Additional KYC Document
+								<span class="text-gray-500">(Proof of Address, Bank Statement, etc.)</span>
+							</label>
+							{#if documents.kyc}
+								<div class="flex items-center gap-3 p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
+									<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+									</svg>
+									<span class="text-green-400 text-sm flex-1 truncate">{documents.kyc.name}</span>
+									<button
+										type="button"
+										on:click={() => removeDocument('kyc')}
+										class="text-red-400 hover:text-red-300 text-sm"
+									>
+										Remove
+									</button>
+								</div>
+							{:else}
+								<label class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-all {errors.doc_kyc ? 'border-red-500 bg-red-500/5' : 'border-gray-700 hover:border-red-500/50 bg-black/50'}">
+									{#if uploadingDoc === 'kyc'}
+										<div class="flex items-center gap-2">
+											<svg class="animate-spin h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+												<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+												<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+											</svg>
+											<span class="text-gray-400">Uploading...</span>
+										</div>
+									{:else}
+										<div class="flex flex-col items-center">
+											<svg class="w-8 h-8 text-gray-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+											</svg>
+											<span class="text-sm text-gray-400">Click to upload or drag and drop</span>
+										</div>
+									{/if}
+									<input
+										type="file"
+										accept=".pdf,.png,.jpg,.jpeg"
+										class="hidden"
+										on:change={(e) => handleFileSelect(e, 'kyc')}
+										disabled={uploadingDoc !== null}
+									>
+								</label>
+							{/if}
+							{#if errors.doc_kyc}
+								<p class="text-red-400 text-sm mt-1">{errors.doc_kyc}</p>
+							{/if}
+						</div>
+					</div>
+				</div>
+
 				{#if errors.submit}
 					<div class="bg-red-500/10 border border-red-500/50 rounded-lg p-4">
 						<p class="text-red-400">{errors.submit}</p>

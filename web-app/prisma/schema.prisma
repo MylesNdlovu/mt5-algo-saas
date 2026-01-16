@@ -113,6 +113,11 @@ model User {
   isActive     Boolean       @default(true)
   status       AccountStatus @default(PENDING)
 
+  // Email Verification
+  emailVerified      Boolean   @default(false)
+  verificationCode   String?
+  verificationExpiry DateTime?
+
   // Relationships
   mt5Accounts          MT5Account[]
   eas                  EA[]
@@ -462,6 +467,17 @@ model IBPartner {
   // Business Details
   currentTraders String? // Range of traders
   message        String? // Application message
+
+  // KYC Documents (uploaded during registration)
+  companyDocument String? // Company registration document URL
+  idDocument      String? // ID/Passport copy URL
+  kycDocument     String? // Additional KYC document URL
+  kycStatus       String  @default("pending") // pending, approved, rejected
+
+  // Email Verification
+  emailVerified    Boolean  @default(false)
+  verificationCode String?
+  verificationExpiry DateTime?
 
   // Pricing Tier (set by admin)
   pricingTier String @default("tier1") // tier1, tier2, tier3

@@ -14,10 +14,14 @@
 	let loading = false;
 	let errorMessage = '';
 
-	// Auto-fill IB code from white-label domain
+	// Get white-label branding from layout data (set when accessed via IB custom domain)
 	$: whiteLabel = $page.data.whiteLabel;
 	$: isWhiteLabelDomain = !!whiteLabel;
+	$: brandName = whiteLabel?.brandName || 'SCALPERIUM';
+	$: brandColor = whiteLabel?.brandColor || '#EF4444';
+	$: logoUrl = whiteLabel?.logo || '/logo.png';
 
+	// Auto-fill IB code from white-label domain
 	onMount(() => {
 		if (whiteLabel?.ibCode) {
 			ibCode = whiteLabel.ibCode;
@@ -82,9 +86,13 @@
 	<div class="w-full max-w-md relative z-10">
 		<!-- Header -->
 		<div class="text-center mb-8">
-			<img src="/logo.png" alt="SCALPERIUM" class="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-2" />
-			<h1 class="text-2xl sm:text-4xl font-bold mb-2" style="font-family: 'Orbitron', sans-serif; color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); letter-spacing: 0.05em;">
-				Join SCALPERIUM
+			{#if whiteLabel?.logo}
+				<img src={logoUrl} alt={brandName} class="max-h-32 sm:max-h-40 mx-auto mb-2" />
+			{:else}
+				<img src="/logo.png" alt="SCALPERIUM" class="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-2" />
+			{/if}
+			<h1 class="text-2xl sm:text-4xl font-bold mb-2" style="font-family: 'Orbitron', sans-serif; color: #9ca3af; text-shadow: 0 0 10px {brandColor}80; letter-spacing: 0.05em;">
+				Join {brandName}
 			</h1>
 			<p class="text-sm sm:text-base text-gray-400">Start trading gold with precision</p>
 		</div>
@@ -159,21 +167,23 @@
 					/>
 				</div>
 
-				<!-- IB Referral Code (Optional) -->
-				<div>
-					<label for="ibCode" class="block text-sm font-medium text-gray-300 mb-2">
-						IB Referral Code <span class="text-gray-500 text-xs">(optional)</span>
-					</label>
-					<input
-						id="ibCode"
-						type="text"
-						bind:value={ibCode}
-						placeholder="Enter IB code if you have one"
-						disabled={loading}
-						class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition disabled:opacity-50 uppercase"
-					/>
-					<p class="text-xs text-gray-500 mt-1">If you were referred by an IB partner, enter their code here</p>
-				</div>
+				<!-- IB Referral Code (hidden on white-label domains since it's auto-filled) -->
+				{#if !isWhiteLabelDomain}
+					<div>
+						<label for="ibCode" class="block text-sm font-medium text-gray-300 mb-2">
+							IB Referral Code <span class="text-gray-500 text-xs">(optional)</span>
+						</label>
+						<input
+							id="ibCode"
+							type="text"
+							bind:value={ibCode}
+							placeholder="Enter IB code if you have one"
+							disabled={loading}
+							class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition disabled:opacity-50 uppercase"
+						/>
+						<p class="text-xs text-gray-500 mt-1">If you were referred by an IB partner, enter their code here</p>
+					</div>
+				{/if}
 
 				<!-- Password -->
 				<div>
@@ -224,7 +234,8 @@
 				<button
 					type="submit"
 					disabled={loading}
-					class="w-full px-6 py-3 bg-gradient-to-r from-red-500 to-red-700 text-white font-bold rounded-lg hover:from-red-400 hover:to-red-600 transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-red-500/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+					class="w-full px-6 py-3 text-white font-bold rounded-lg transition-all transform hover:scale-105 active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+					style="background: linear-gradient(to right, {brandColor}, {brandColor}cc); box-shadow: 0 10px 15px -3px {brandColor}50;"
 				>
 					{#if loading}
 						<span class="flex items-center justify-center">
@@ -244,7 +255,7 @@
 			<div class="mt-6 text-center">
 				<p class="text-sm text-gray-400">
 					Already have an account?
-					<a href="/login" class="text-gray-400 hover:text-red-400 font-semibold transition">
+					<a href="/login" class="font-semibold transition hover:opacity-80" style="color: {brandColor};">
 						Sign In
 					</a>
 				</p>
@@ -258,7 +269,7 @@
 
 		<!-- Back to Home Link -->
 		<div class="text-center mt-6">
-			<a href="/" class="text-sm text-gray-400 hover:text-red-400 transition">
+			<a href="/" class="text-sm text-gray-400 transition hover:opacity-80">
 				← Back to Home
 			</a>
 		</div>

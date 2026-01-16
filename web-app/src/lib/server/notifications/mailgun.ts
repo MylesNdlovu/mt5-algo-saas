@@ -12,6 +12,7 @@ interface EmailData {
 	subject: string;
 	html: string;
 	text?: string;
+	fromName?: string; // Optional custom "from" name (e.g., "Partner Brand")
 }
 
 export class MailgunService {
@@ -31,8 +32,18 @@ export class MailgunService {
 
 	async sendEmail(data: EmailData): Promise<{ success: boolean; messageId?: string; error?: string }> {
 		try {
+			// Allow custom "from" name while keeping the verified email address
+			// e.g., "Partner Brand <noreply@mail.scalperium.com>"
+			let fromAddress = this.from;
+			if (data.fromName) {
+				// Extract just the email from the default from address
+				const emailMatch = this.from.match(/<(.+)>/) || [null, this.from];
+				const email = emailMatch[1] || this.from;
+				fromAddress = `${data.fromName} <${email}>`;
+			}
+
 			const messageData = {
-				from: this.from,
+				from: fromAddress,
 				to: data.to,
 				subject: data.subject,
 				html: data.html,

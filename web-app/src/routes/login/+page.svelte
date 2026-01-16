@@ -1,5 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+
+	// Get white-label branding from layout data (set when accessed via IB custom domain)
+	$: whiteLabel = $page.data.whiteLabel;
+	$: brandName = whiteLabel?.brandName || 'SCALPERIUM';
+	$: brandColor = whiteLabel?.brandColor || '#EF4444';
+	$: logoUrl = whiteLabel?.logo || '/logo.png';
 
 	let email = '';
 	let password = '';
@@ -66,9 +73,13 @@
 	<div class="w-full max-w-md relative z-10">
 		<!-- Header -->
 		<div class="text-center mb-8">
-			<img src="/logo.png" alt="SCALPERIUM" class="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-2" />
-			<h1 class="text-2xl sm:text-4xl font-bold mb-2" style="font-family: 'Orbitron', sans-serif; color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); letter-spacing: 0.05em;">
-				SCALPERIUM
+			{#if whiteLabel?.logo}
+				<img src={logoUrl} alt={brandName} class="max-h-32 sm:max-h-40 mx-auto mb-2" />
+			{:else}
+				<img src="/logo.png" alt="SCALPERIUM" class="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-2" />
+			{/if}
+			<h1 class="text-2xl sm:text-4xl font-bold mb-2" style="font-family: 'Orbitron', sans-serif; color: #9ca3af; text-shadow: 0 0 10px {brandColor}80; letter-spacing: 0.05em;">
+				{brandName}
 			</h1>
 			<p class="text-sm sm:text-base text-gray-400">Access your trading dashboard</p>
 		</div>
@@ -80,33 +91,35 @@
 			</div>
 		{/if}
 
-		<!-- Demo Credentials Button -->
-		<div class="mb-4">
-			<button
-				on:click={() => showDemo = !showDemo}
-				type="button"
-				class="w-full px-4 py-2 bg-blue-600/20 border border-blue-500/50 rounded-lg text-blue-400 hover:bg-blue-600/30 transition text-sm font-medium"
-			>
-				{showDemo ? '✕ Hide' : '🔑 Show'} Demo Credentials
-			</button>
-		</div>
-
-		{#if showDemo}
-			<div class="mb-6 bg-blue-900/10 border border-blue-500/30 rounded-xl p-4">
-				<h3 class="text-sm font-semibold text-blue-400 mb-3">Quick Login Options:</h3>
-				<div class="space-y-2">
-					{#each demoAccounts as account}
-						<button
-							type="button"
-							on:click={() => useDemoAccount(account)}
-							class="w-full text-left px-3 py-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg transition text-xs"
-						>
-							<div class="text-gray-400 font-medium">{account.label}</div>
-							<div class="text-gray-400">{account.email} • {account.broker}</div>
-						</button>
-					{/each}
-				</div>
+		<!-- Demo Credentials Button (hidden on white-label domains) -->
+		{#if !whiteLabel}
+			<div class="mb-4">
+				<button
+					on:click={() => showDemo = !showDemo}
+					type="button"
+					class="w-full px-4 py-2 bg-blue-600/20 border border-blue-500/50 rounded-lg text-blue-400 hover:bg-blue-600/30 transition text-sm font-medium"
+				>
+					{showDemo ? '✕ Hide' : '🔑 Show'} Demo Credentials
+				</button>
 			</div>
+
+			{#if showDemo}
+				<div class="mb-6 bg-blue-900/10 border border-blue-500/30 rounded-xl p-4">
+					<h3 class="text-sm font-semibold text-blue-400 mb-3">Quick Login Options:</h3>
+					<div class="space-y-2">
+						{#each demoAccounts as account}
+							<button
+								type="button"
+								on:click={() => useDemoAccount(account)}
+								class="w-full text-left px-3 py-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg transition text-xs"
+							>
+								<div class="text-gray-400 font-medium">{account.label}</div>
+								<div class="text-gray-400">{account.email} • {account.broker}</div>
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/if}
 		{/if}
 
 		<!-- Login Form -->
@@ -162,7 +175,8 @@
 				<button
 					type="submit"
 					disabled={loading}
-					class="w-full px-6 py-3 bg-gradient-to-r from-red-500 to-red-700 text-white font-bold rounded-lg hover:from-red-400 hover:to-red-600 transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-red-500/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+					class="w-full px-6 py-3 text-white font-bold rounded-lg transition-all transform hover:scale-105 active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+					style="background: linear-gradient(to right, {brandColor}, {brandColor}cc); box-shadow: 0 10px 15px -3px {brandColor}50;"
 				>
 					{#if loading}
 						<span class="flex items-center justify-center">
@@ -182,7 +196,7 @@
 			<div class="mt-6 text-center">
 				<p class="text-sm text-gray-400">
 					Don't have an account?
-					<a href="/register" class="text-gray-400 hover:text-red-400 font-semibold transition">
+					<a href="/register" class="font-semibold transition hover:opacity-80" style="color: {brandColor};">
 						Create Account
 					</a>
 				</p>
@@ -191,7 +205,7 @@
 
 		<!-- Back to Home Link -->
 		<div class="text-center mt-6">
-			<a href="/" class="text-sm text-gray-400 hover:text-red-400 transition">
+			<a href="/" class="text-sm text-gray-400 transition hover:opacity-80" style="--hover-color: {brandColor};">
 				← Back to Home
 			</a>
 		</div>
