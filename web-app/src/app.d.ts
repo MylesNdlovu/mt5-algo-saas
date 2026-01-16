@@ -15,6 +15,19 @@ interface SessionUser {
 	name?: string;               // Display name
 }
 
+/**
+ * WhiteLabel - IB Partner branding configuration detected from custom domain.
+ * Automatically populated in hooks.server.ts when accessing via custom domain.
+ */
+interface WhiteLabel {
+	partnerId: string;           // IBPartner.id
+	brandName: string;           // Display name for the brand
+	brandColor: string;          // Primary brand color (hex)
+	logo: string | null;         // Logo URL/path
+	favicon: string | null;      // Favicon URL/path
+	ibCode: string;              // IB referral code for automatic attribution
+}
+
 declare global {
 	namespace App {
 		// interface Error {}
@@ -25,10 +38,17 @@ declare global {
 			 * Use this instead of manually checking cookies in routes.
 			 */
 			user?: SessionUser;
+
+			/**
+			 * White-label branding configuration.
+			 * Automatically detected from custom domain in hooks.server.ts.
+			 * Available in all pages via $page.data.whiteLabel
+			 */
+			whiteLabel?: WhiteLabel;
 		}
 		// interface PageData {}
 		// interface Platform {}
 	}
 }
 
-export { SessionUser };
+export { SessionUser, WhiteLabel };

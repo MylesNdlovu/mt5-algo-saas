@@ -2,6 +2,9 @@ import type { Handle } from '@sveltejs/kit';
 import { getSessionUser } from '$lib/server/auth';
 import { wsServer } from '$lib/server/websocket-server';
 import { building } from '$app/environment';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // ============================================================================
 // WebSocket Server Initialization
@@ -64,6 +67,57 @@ if (!building && typeof process !== 'undefined') {
 // ============================================================================
 
 export const handle: Handle = async ({ event, resolve }) => {
+	// ============================================================================
+	// White-Label Domain Detection
+	// ============================================================================
+
+	const hostname = event.url.hostname;
+
+	// Skip white-label detection for localhost and default Vercel domains
+	const isLocalhost = hostname === 'localhost' || hostname.startsWith('127.0.0.1');
+	const isVercelDomain = hostname.includes('.vercel.app') || hostname.includes('scalperium.com');
+
+	if (!isLocalhost && !isVercelDomain) {
+		try {
+			// Look up IB partner by custom domain
+			const ibPartner = await prisma.iBPartner.findFirst({
+				where: {
+					domain: hostname,
+					isActive: true,
+					isApproved: true
+				},
+				select: {
+					id: true,
+					companyName: true,
+					brandName: true,
+					brandColor: true,
+					logo: true,
+					favicon: true,
+					ibCode: true
+				}
+			});
+
+			if (ibPartner) {
+				// Store white-label branding in event.locals for use in pages
+				event.locals.whiteLabel = {
+					partnerId: ibPartner.id,
+					brandName: ibPartner.brandName || ibPartner.companyName,
+					brandColor: ibPartner.brandColor,
+					logo: ibPartner.logo,
+					favicon: ibPartner.favicon,
+					ibCode: ibPartner.ibCode
+				};
+			}
+		} catch (error) {
+			console.error('[hooks.server] White-label lookup error:', error);
+			// Continue with default branding on error
+		}
+	}
+
+	// ============================================================================
+	// Session Management
+	// ============================================================================
+
 	// Get session using unified session helper (supports backward compatibility)
 	const sessionUser = getSessionUser(event.cookies);
 
@@ -71,7 +125,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		event.locals.user = sessionUser;
 	}
 
-	// Role-based route protection
+	// ============================================================================
+	// Role-Based Route Protection
+	// ============================================================================
+
 	const path = event.url.pathname;
 
 	// Public routes (no auth required)

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
 
 	let firstName = '';
 	let lastName = '';
@@ -11,6 +13,16 @@
 	let agreeTerms = false;
 	let loading = false;
 	let errorMessage = '';
+
+	// Auto-fill IB code from white-label domain
+	$: whiteLabel = $page.data.whiteLabel;
+	$: isWhiteLabelDomain = !!whiteLabel;
+
+	onMount(() => {
+		if (whiteLabel?.ibCode) {
+			ibCode = whiteLabel.ibCode;
+		}
+	});
 
 	async function handleRegister() {
 		// Validation
