@@ -39,16 +39,21 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 		if (user) {
 			// User found in User table
+			console.log('[Auth] User found:', { id: user.id, role: user.role, isActive: user.isActive });
+
 			if (!user.isActive) {
 				console.log('[Auth] User account inactive:', email);
 				return json({ success: false, error: 'Account is inactive' }, { status: 401 });
 			}
 
-			// Verify password
+			// Verify password - add debug
+			console.log('[Auth] Verifying password, hash prefix:', user.passwordHash?.substring(0, 7));
 			const isValidPassword = await verifyPassword(password, user.passwordHash);
+			console.log('[Auth] Password verification result:', isValidPassword);
+
 			if (!isValidPassword) {
 				console.log('[Auth] Invalid password for:', email);
-				return json({ success: false, error: 'Invalid credentials' }, { status: 401 });
+				return json({ success: false, error: 'Invalid credentials', debug: { hashPrefix: user.passwordHash?.substring(0, 7) } }, { status: 401 });
 			}
 
 			// Create unified session
