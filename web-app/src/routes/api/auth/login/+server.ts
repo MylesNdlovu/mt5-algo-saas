@@ -26,12 +26,13 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 						companyName: true
 					}
 				},
-				mt5Account: {
+				mt5Accounts: {
 					select: {
 						id: true,
 						broker: true,
 						serverName: true
-					}
+					},
+					take: 1
 				}
 			}
 		});
@@ -83,7 +84,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 					name: `${user.firstName} ${user.lastName}`,
 					role: user.role,
 					ibPartnerId: user.ibPartnerId,
-					hasMt5Connected: !!user.mt5Account
+					hasMt5Connected: user.mt5Accounts && user.mt5Accounts.length > 0
 				}
 			});
 		}
@@ -150,4 +151,3 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		return json({ success: false, error: 'Login failed' }, { status: 500 });
 	}
 };
-// Force redeploy Sat Jan 17 14:32:00 SAST 2026 - Prisma client regeneration
