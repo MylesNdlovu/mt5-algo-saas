@@ -1,0 +1,3 @@
+/Users/dmd/mt5-algo-saas/mt5-agent/installer/bin/Release/net8.0-windows/publish/appsettings.json
+/Users/dmd/mt5-algo-saas/mt5-agent/installer/bin/Release/net8.0-windows/publish/MT5Agent.Service.pdb
+/Users/dmd/mt5-algo-saas/mt5-agent/installer/bin/Release/net8.0-windows/publish/MT5Agent.Service.exe

@@ -1,0 +1,16 @@
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/bin/Release/net8.0/MT5Agent.WebSocket.deps.json
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/bin/Release/net8.0/MT5Agent.WebSocket.dll
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/bin/Release/net8.0/MT5Agent.WebSocket.pdb
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/bin/Release/net8.0/MT5Agent.Core.dll
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/bin/Release/net8.0/MT5Agent.Core.pdb
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/obj/Release/net8.0/MT5Agent.WebSocket.csproj.AssemblyReference.cache
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/obj/Release/net8.0/MT5Agent.WebSocket.GeneratedMSBuildEditorConfig.editorconfig
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/obj/Release/net8.0/MT5Agent.WebSocket.AssemblyInfoInputs.cache
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/obj/Release/net8.0/MT5Agent.WebSocket.AssemblyInfo.cs
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/obj/Release/net8.0/MT5Agent.WebSocket.csproj.CoreCompileInputs.cache
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/obj/Release/net8.0/MT5Agent.WebSocket.sourcelink.json
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/obj/Release/net8.0/MT5Agent.C4B485BF.Up2Date
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/obj/Release/net8.0/MT5Agent.WebSocket.dll
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/obj/Release/net8.0/refint/MT5Agent.WebSocket.dll
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/obj/Release/net8.0/MT5Agent.WebSocket.pdb
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.WebSocket/obj/Release/net8.0/ref/MT5Agent.WebSocket.dll

@@ -1,0 +1,13 @@
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.Core/bin/Release/net8.0/MT5Agent.Core.deps.json
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.Core/bin/Release/net8.0/MT5Agent.Core.dll
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.Core/bin/Release/net8.0/MT5Agent.Core.pdb
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.Core/obj/Release/net8.0/MT5Agent.Core.csproj.AssemblyReference.cache
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.Core/obj/Release/net8.0/MT5Agent.Core.GeneratedMSBuildEditorConfig.editorconfig
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.Core/obj/Release/net8.0/MT5Agent.Core.AssemblyInfoInputs.cache
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.Core/obj/Release/net8.0/MT5Agent.Core.AssemblyInfo.cs
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.Core/obj/Release/net8.0/MT5Agent.Core.csproj.CoreCompileInputs.cache
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.Core/obj/Release/net8.0/MT5Agent.Core.sourcelink.json
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.Core/obj/Release/net8.0/MT5Agent.Core.dll
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.Core/obj/Release/net8.0/refint/MT5Agent.Core.dll
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.Core/obj/Release/net8.0/MT5Agent.Core.pdb
+/Users/dmd/mt5-algo-saas/mt5-agent/src/MT5Agent.Core/obj/Release/net8.0/ref/MT5Agent.Core.dll
