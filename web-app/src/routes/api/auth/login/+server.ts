@@ -1,7 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { PrismaClient } from '@prisma/client';
-import { verifyPassword, setSession, createUserSession } from '$lib/server/auth';
+import bcrypt from 'bcrypt';
+import { setSession, createUserSession } from '$lib/server/auth';
 
 const prisma = new PrismaClient();
 
@@ -46,14 +47,21 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 				return json({ success: false, error: 'Account is inactive' }, { status: 401 });
 			}
 
-			// Verify password - add debug
+			// Verify password - direct bcrypt call for debugging
 			console.log('[Auth] Verifying password, hash prefix:', user.passwordHash?.substring(0, 7));
-			const isValidPassword = await verifyPassword(password, user.passwordHash);
+			console.log('[Auth] Password received:', password, 'length:', password?.length);
+			let isValidPassword = false;
+			try {
+				isValidPassword = await bcrypt.compare(password, user.passwordHash);
+			} catch (bcryptError) {
+				console.error('[Auth] bcrypt error:', bcryptError);
+				return json({ success: false, error: 'Password verification error', debug: { bcryptError: String(bcryptError) } }, { status: 500 });
+			}
 			console.log('[Auth] Password verification result:', isValidPassword);
 
 			if (!isValidPassword) {
 				console.log('[Auth] Invalid password for:', email);
-				return json({ success: false, error: 'Invalid credentials', debug: { hashPrefix: user.passwordHash?.substring(0, 7) } }, { status: 401 });
+				return json({ success: false, error: 'Invalid credentials', debug: { hashPrefix: user.passwordHash?.substring(0, 7), pwdLen: password?.length } }, { status: 401 });
 			}
 
 			// Create unified session
@@ -112,8 +120,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			}
 
 			// Verify password
-			const isValidPassword = await verifyPassword(password, ibPartner.passwordHash);
-			if (!isValidPassword) {
+			const isValidIBPassword = await bcrypt.compare(password, ibPartner.passwordHash);
+			if (!isValidIBPassword) {
 				console.log('[Auth] Invalid password for IB:', email);
 				return json({ success: false, error: 'Invalid credentials' }, { status: 401 });
 			}
