@@ -150,4 +150,4 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		return json({ success: false, error: 'Login failed' }, { status: 500 });
 	}
 };
-// Force redeploy Sat Jan 17 13:55:44 SAST 2026
+// Force redeploy Sat Jan 17 14:32:00 SAST 2026 - Prisma client regeneration
