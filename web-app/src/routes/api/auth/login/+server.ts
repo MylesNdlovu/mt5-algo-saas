@@ -147,7 +147,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		return json({ success: false, error: 'Invalid credentials' }, { status: 401 });
 
 	} catch (error) {
-		console.error('[Auth] Login error:', error);
-		return json({ success: false, error: 'Login failed' }, { status: 500 });
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		console.error('[Auth] Login error:', errorMessage);
+		return json({ success: false, error: `Login failed: ${errorMessage}` }, { status: 500 });
 	}
 };
