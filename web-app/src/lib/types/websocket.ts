@@ -100,6 +100,9 @@ export interface MT5InstanceStatus {
 	eaName?: string;
 	chartSymbol?: string;
 	chartTimeframe?: string;
+	// Traffic Light Indicator
+	safetyIndicator: 'RED' | 'ORANGE' | 'GREEN';
+	indicatorScore: number; // 0-100 market condition score
 	// Timestamps
 	lastActivity: number;
 }
@@ -151,6 +154,8 @@ export interface StatusUpdateMessage extends BaseMessage {
 	eaStatus: EAStatusInfo;
 	accountInfo: AccountInfo;
 	safetyIndicator: 'RED' | 'ORANGE' | 'GREEN';
+	indicatorScore: number; // 0-100 market condition score
+	stoppedByIndicator?: boolean; // True if EA was auto-stopped due to RED
 }
 
 export interface TradeUpdateMessage extends BaseMessage {

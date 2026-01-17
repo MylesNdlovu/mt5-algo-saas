@@ -30,8 +30,15 @@ export function formatDateTime(date: string | Date): string {
 	});
 }
 
-export function calculatePnL(trades: Array<{ profit: number; commission: number; swap: number }>) {
-	return trades.reduce(
+interface PnLResult {
+	total: number;
+	profit: number;
+	commission: number;
+	swap: number;
+}
+
+export function calculatePnL(trades: Array<{ profit: number; commission: number; swap: number }>): PnLResult {
+	return trades.reduce<PnLResult>(
 		(acc, trade) => {
 			acc.profit += trade.profit;
 			acc.commission += trade.commission;

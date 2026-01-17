@@ -1,5 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+
+	// Get white-label branding from layout data (set when accessed via IB custom domain)
+	$: whiteLabel = $page.data.whiteLabel;
+	$: brandName = whiteLabel?.brandName || 'SCALPERIUM';
+	$: brandColor = whiteLabel?.brandColor || '#3B82F6'; // Trading blue (profitable trades in MT5)
+	$: logoUrl = whiteLabel?.logo || '/logo.png';
 
 	let loading = false;
 	let connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error' = 'disconnected';
@@ -65,11 +72,15 @@
 	<div class="w-full max-w-md relative z-10">
 		<!-- Header -->
 		<div class="text-center mb-8">
-			<img src="/logo.png" alt="SCALPERIUM" class="w-44 h-44 sm:w-48 sm:h-48 mx-auto mb-2" />
-			<h1 class="text-3xl sm:text-4xl font-bold mb-2" style="font-family: 'Orbitron', sans-serif; color: #9ca3af; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); letter-spacing: 0.05em;">
+			{#if whiteLabel?.logo}
+				<img src={logoUrl} alt={brandName} class="max-h-32 sm:max-h-40 mx-auto mb-2" />
+			{:else}
+				<img src="/logo.png" alt="SCALPERIUM" class="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-2" />
+			{/if}
+			<h1 class="text-3xl sm:text-4xl font-bold mb-2" style="font-family: 'Orbitron', sans-serif; color: #9ca3af; text-shadow: 0 0 10px {brandColor}80; letter-spacing: 0.05em;">
 				Connect to MT5
 			</h1>
-			<p class="text-gray-400 text-sm">Link your mobile trading account to SCALPERIUM</p>
+			<p class="text-gray-400 text-sm">Link your mobile trading account to {brandName}</p>
 		</div>
 
 		<!-- Connection Status Card -->
@@ -79,8 +90,8 @@
 					<span class="text-white font-semibold">Connection Status</span>
 					<div class="flex items-center space-x-2">
 						{#if connectionStatus === 'connecting'}
-						<div class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
-						<span class="text-red-400 text-sm">Connecting...</span>
+						<div class="w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
+						<span class="text-blue-400 text-sm">Connecting...</span>
 						{:else if connectionStatus === 'connected'}
 							<div class="w-3 h-3 rounded-full bg-green-500 animate-pulse shadow-lg shadow-green-500/50"></div>
 							<span class="text-green-400 text-sm font-semibold">✓ Connected</span>
@@ -129,7 +140,7 @@
 						bind:value={broker}
 					placeholder="e.g., XM, FXTM, IC Markets"
 					disabled={loading || connectionStatus === 'connected'}
-					class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
+					class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
 					/>
 				</div>
 
@@ -144,7 +155,7 @@
 						bind:value={server}
 					placeholder="e.g., XM-Real 23"
 					disabled={loading || connectionStatus === 'connected'}
-					class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
+					class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
 					/>
 					<p class="text-xs text-gray-500 mt-1">Find this in your MT5 mobile app settings</p>
 				</div>
@@ -160,7 +171,7 @@
 						bind:value={accountNumber}
 					placeholder="12345678"
 					disabled={loading || connectionStatus === 'connected'}
-					class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
+					class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
 					/>
 					<p class="text-xs text-gray-500 mt-1">Your account will be linked to your Windows agent</p>
 				</div>
@@ -170,7 +181,8 @@
 					<button
 						type="submit"
 						disabled={loading || connectionStatus === 'connected'}
-						class="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-red-700 text-white font-bold rounded-lg hover:from-red-400 hover:to-red-600 transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-red-500/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+						class="flex-1 px-6 py-3 text-white font-bold rounded-lg transition-all transform hover:scale-105 active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+						style="background: linear-gradient(to right, {brandColor}, {brandColor}cc); box-shadow: 0 10px 15px -3px {brandColor}50;"
 					>
 						{#if loading}
 							<span class="flex items-center justify-center">
@@ -205,7 +217,7 @@
 
 		<!-- Back to Home Link -->
 		<div class="text-center mt-6">
-			<a href="/" class="text-sm text-gray-400 hover:text-red-400 transition">
+			<a href="/" class="text-sm text-gray-400 transition hover:opacity-80" style="--hover-color: {brandColor};">
 				← Back to Home
 			</a>
 		</div>

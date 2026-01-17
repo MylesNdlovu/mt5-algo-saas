@@ -10,24 +10,22 @@
 
 	let email = '';
 	let password = '';
-	let broker = 'Exness';
 	let loading = false;
 	let errorMessage = '';
 	let showDemo = false;
 
 	const demoAccounts = [
-		{ label: '👑 Super Admin', email: 'admin@scalperium.com', password: 'admin123', broker: 'System' },
-		{ label: '👔 IB Partner - Alpha Trade', email: 'contact@alphatrade.com', password: 'password123', broker: 'Exness' },
-		{ label: '👔 IB Partner - Gold King', email: 'info@goldking.io', password: 'password123', broker: 'Exness' },
-		{ label: '💰 Trader (Active) - James', email: 'james.wilson@email.com', password: 'password123', broker: 'Exness' },
-		{ label: '💰 VIP Trader - David', email: 'david.kim@email.com', password: 'password123', broker: 'Exness' },
-		{ label: '⚠️ Inactive Trader (7d)', email: 'sofia.martinez@email.com', password: 'password123', broker: 'Exness' }
+		{ label: '👑 Super Admin', email: 'admin@scalperium.com', password: 'admin123' },
+		{ label: '👔 IB Partner - Alpha Trade', email: 'contact@alphatrade.com', password: 'password123' },
+		{ label: '👔 IB Partner - Gold King', email: 'info@goldking.io', password: 'password123' },
+		{ label: '💰 Trader (Active) - James', email: 'james.wilson@email.com', password: 'password123' },
+		{ label: '💰 VIP Trader - David', email: 'david.kim@email.com', password: 'password123' },
+		{ label: '⚠️ Inactive Trader (7d)', email: 'sofia.martinez@email.com', password: 'password123' }
 	];
 
-	function useDemoAccount(account: any) {
+	function useDemoAccount(account: { email: string; password: string }) {
 		email = account.email;
 		password = account.password;
-		broker = account.broker;
 		showDemo = false;
 	}
 
@@ -44,7 +42,7 @@
 			const response = await fetch('/api/auth/login', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email, password, broker })
+				body: JSON.stringify({ email, password })
 			});
 
 			const result = await response.json();
@@ -56,7 +54,13 @@
 				} else if (result.user.role === 'IB') {
 					goto('/ib-dashboard');
 				} else {
-					goto('/dashboard');
+					// For traders, check if MT5 is connected
+					if (result.user.hasMt5Connected) {
+						goto('/dashboard');
+					} else {
+						// Redirect to connect page to set up MT5
+						goto('/connect');
+					}
 				}
 			} else {
 				errorMessage = result.error || 'Invalid credentials';
@@ -114,7 +118,7 @@
 								class="w-full text-left px-3 py-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg transition text-xs"
 							>
 								<div class="text-gray-400 font-medium">{account.label}</div>
-								<div class="text-gray-400">{account.email} • {account.broker}</div>
+								<div class="text-gray-400">{account.email}</div>
 							</button>
 						{/each}
 					</div>
@@ -153,22 +157,6 @@
 					disabled={loading}
 					class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition disabled:opacity-50"
 					/>
-				</div>
-
-				<!-- Broker Server -->
-				<div>
-					<label for="broker" class="block text-sm font-medium text-gray-300 mb-2">
-						Broker Server
-					</label>
-					<select
-						id="broker"
-						bind:value={broker}
-						disabled={loading}
-						class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition disabled:opacity-50"
-					>
-						<option value="Exness">Exness</option>
-						<option value="PrimeXBT">PrimeXBT</option>
-					</select>
 				</div>
 
 				<!-- Submit Button -->

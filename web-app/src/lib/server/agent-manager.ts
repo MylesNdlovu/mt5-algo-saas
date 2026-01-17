@@ -201,6 +201,8 @@ class AgentManager {
 				profit: 0,
 				eaLoaded: false,
 				eaRunning: false,
+				safetyIndicator: 'RED',
+				indicatorScore: 0,
 				lastActivity: now,
 			});
 			this.accountToPoolAgent.set(accountNumber, agentId);
@@ -241,7 +243,7 @@ class AgentManager {
 				remoteAddress,
 				isPoolAgent: true,
 				vpsName,
-				accountCount: accountNumbers.length,
+				currentLoad: accountNumbers.length,
 			},
 		});
 
@@ -472,7 +474,7 @@ class AgentManager {
 			data: isPoolAgent ? {
 				isPoolAgent: true,
 				vpsName: poolAgent?.vpsName,
-				accountCount: poolAgent?.managedAccounts?.length,
+				currentLoad: poolAgent?.managedAccounts?.length,
 			} : undefined,
 		});
 

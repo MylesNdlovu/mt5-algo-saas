@@ -193,6 +193,9 @@ model EA {
   // Status
   status          EAStatus        @default(STOPPED)
   safetyIndicator SafetyIndicator @default(RED)
+  indicatorScore  Float           @default(0) // 0-100 market condition score
+  stoppedByIndicator Boolean      @default(false) // True if EA was auto-stopped due to RED
+  stoppedByIndicatorAt DateTime?  // When EA was auto-stopped
 
   // Configuration
   maxLotSize  Float @default(0.01)
@@ -591,6 +594,7 @@ model Agent {
 
   // Relationships
   accountAssignments MT5AccountAssignment[]
+  commands           AgentCommand[]
 
   @@index([userId])
   @@index([machineId])
@@ -599,6 +603,44 @@ model Agent {
   @@index([mt5AccountNumber])
   @@index([isPoolAgent])
   @@index([vpsName])
+}
+
+// Secure command queue for web app → agent communication
+// Web app writes commands, agent polls and executes
+model AgentCommand {
+  id String @id @default(uuid())
+
+  // Target agent
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  // Optional: target specific MT5 account (for pool agents)
+  mt5AccountNumber String?
+
+  // Command details
+  command   String // start_ea, stop_ea, restart_terminal, update_settings, sync_trades
+  payload   Json?  // Command-specific parameters
+  priority  Int    @default(0) // Higher = more urgent
+
+  // Status tracking
+  status      String    @default("pending") // pending, processing, completed, failed
+  result      Json?     // Command result or error details
+  errorMessage String?
+
+  // Timing
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+  completedAt DateTime?
+  expiresAt   DateTime? // Command expires if not processed by this time
+
+  // Audit
+  createdBy   String? // Admin/user who issued the command
+  ipAddress   String?
+
+  @@index([agentId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([mt5AccountNumber])
 }
 
 // Track which MT5 accounts are assigned to which pool agent

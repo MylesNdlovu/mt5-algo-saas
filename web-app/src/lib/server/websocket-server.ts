@@ -341,7 +341,7 @@ class MT5WebSocketServer {
 		const registered = await agentManager.registerAgent(
 			agent.id,
 			machineId,
-			agent.userId,
+			agent.userId || '', // Pool agents may have null userId
 			socket,
 			remoteAddress
 		);

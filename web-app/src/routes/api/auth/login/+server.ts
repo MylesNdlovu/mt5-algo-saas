@@ -25,6 +25,13 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 						id: true,
 						companyName: true
 					}
+				},
+				mt5Account: {
+					select: {
+						id: true,
+						broker: true,
+						serverName: true
+					}
 				}
 			}
 		});
@@ -75,7 +82,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 					email: user.email,
 					name: `${user.firstName} ${user.lastName}`,
 					role: user.role,
-					ibPartnerId: user.ibPartnerId
+					ibPartnerId: user.ibPartnerId,
+					hasMt5Connected: !!user.mt5Account
 				}
 			});
 		}
