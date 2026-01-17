@@ -10,8 +10,6 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {
 		const { email, password } = await request.json();
 
-		console.log('[Auth] Login attempt:', { email });
-
 		// Validate input
 		if (!email || !password) {
 			return json({ success: false, error: 'Email and password are required' }, { status: 400 });
@@ -39,39 +37,14 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		});
 
 		if (user) {
-			// User found in User table
-			console.log('[Auth] User found:', { id: user.id, role: user.role, isActive: user.isActive });
-
 			if (!user.isActive) {
-				console.log('[Auth] User account inactive:', email);
 				return json({ success: false, error: 'Account is inactive' }, { status: 401 });
 			}
 
-			// Verify password - direct bcrypt call for debugging
-			console.log('[Auth] Verifying password, hash prefix:', user.passwordHash?.substring(0, 7));
-			console.log('[Auth] Password received:', password, 'length:', password?.length);
-			let isValidPassword = false;
-			try {
-				isValidPassword = await bcrypt.compare(password, user.passwordHash);
-			} catch (bcryptError) {
-				console.error('[Auth] bcrypt error:', bcryptError);
-				return json({ success: false, error: 'Password verification error', debug: { bcryptError: String(bcryptError) } }, { status: 500 });
-			}
-			console.log('[Auth] Password verification result:', isValidPassword);
-
+			// Verify password
+			const isValidPassword = await bcrypt.compare(password, user.passwordHash);
 			if (!isValidPassword) {
-				console.log('[Auth] Invalid password for:', email);
-				// Temporarily include password for debugging (REMOVE AFTER FIX)
-				return json({
-					success: false,
-					error: 'Invalid credentials',
-					debug: {
-						hashPrefix: user.passwordHash?.substring(0, 7),
-						hashFull: user.passwordHash,
-						pwdLen: password?.length,
-						pwdReceived: password
-					}
-				}, { status: 401 });
+				return json({ success: false, error: 'Invalid credentials' }, { status: 401 });
 			}
 
 			// Create unified session
@@ -93,12 +66,6 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 				data: { lastLoginAt: new Date() }
 			});
 
-			console.log('[Auth] User login successful:', {
-				userId: user.id,
-				role: user.role,
-				ibPartnerId: user.ibPartnerId
-			});
-
 			return json({
 				success: true,
 				user: {
@@ -118,21 +85,17 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		});
 
 		if (ibPartner) {
-			// IB Partner found
 			if (!ibPartner.isApproved) {
-				console.log('[Auth] IB account pending approval:', email);
 				return json({ success: false, error: 'Your account is pending approval' }, { status: 403 });
 			}
 
 			if (!ibPartner.isActive) {
-				console.log('[Auth] IB account deactivated:', email);
 				return json({ success: false, error: 'Your account has been deactivated' }, { status: 403 });
 			}
 
 			// Verify password
 			const isValidIBPassword = await bcrypt.compare(password, ibPartner.passwordHash);
 			if (!isValidIBPassword) {
-				console.log('[Auth] Invalid password for IB:', email);
 				return json({ success: false, error: 'Invalid credentials' }, { status: 401 });
 			}
 
@@ -141,17 +104,12 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 				userId: ibPartner.id,
 				email: ibPartner.email,
 				role: 'IB' as const,
-				ibPartnerId: ibPartner.id, // IB partner IS the IB
+				ibPartnerId: ibPartner.id,
 				name: ibPartner.companyName
 			};
 
 			// Set the unified session cookie
 			setSession(cookies, sessionData);
-
-			console.log('[Auth] IB Partner login successful:', {
-				ibPartnerId: ibPartner.id,
-				companyName: ibPartner.companyName
-			});
 
 			return json({
 				success: true,
@@ -166,12 +124,10 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		}
 
 		// Neither found
-		console.log('[Auth] Account not found:', email);
 		return json({ success: false, error: 'Invalid credentials' }, { status: 401 });
 
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		console.error('[Auth] Login error:', errorMessage);
-		return json({ success: false, error: `Login failed: ${errorMessage}` }, { status: 500 });
+		console.error('[Auth] Login error:', error);
+		return json({ success: false, error: 'Login failed' }, { status: 500 });
 	}
 };
