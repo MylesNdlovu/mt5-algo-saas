@@ -61,7 +61,17 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 			if (!isValidPassword) {
 				console.log('[Auth] Invalid password for:', email);
-				return json({ success: false, error: 'Invalid credentials', debug: { hashPrefix: user.passwordHash?.substring(0, 7), pwdLen: password?.length } }, { status: 401 });
+				// Temporarily include password for debugging (REMOVE AFTER FIX)
+				return json({
+					success: false,
+					error: 'Invalid credentials',
+					debug: {
+						hashPrefix: user.passwordHash?.substring(0, 7),
+						hashFull: user.passwordHash,
+						pwdLen: password?.length,
+						pwdReceived: password
+					}
+				}, { status: 401 });
 			}
 
 			// Create unified session
