@@ -1,5 +1,5 @@
 {
   "framework": "sveltekit",
-  "buildCommand": "npm run build",
+  "buildCommand": "prisma generate && npm run build",
   "installCommand": "npm install"
 }
