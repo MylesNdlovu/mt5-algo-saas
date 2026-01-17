@@ -45,8 +45,8 @@
 				<!-- Admin & Super Admin Only -->
 				{#if isAdmin}
 				<a
-					href="/agents"
-					class="px-3 py-2 rounded-lg transition-all font-medium {currentPath === '/agents' ? 'bg-red-600/20 text-white border border-red-600/50' : 'text-gray-200 hover:bg-gray-800 hover:text-white'}"
+					href="/admin/agents"
+					class="px-3 py-2 rounded-lg transition-all font-medium {currentPath === '/admin/agents' ? 'bg-red-600/20 text-white border border-red-600/50' : 'text-gray-200 hover:bg-gray-800 hover:text-white'}"
 				>
 					🤖 Agents
 				</a>
@@ -128,9 +128,9 @@
 				<!-- Admin & Super Admin Only -->
 				{#if isAdmin}
 				<a
-					href="/agents"
+					href="/admin/agents"
 					on:click={() => showMenu = false}
-					class="block px-4 py-3 rounded-lg font-medium transition-all {currentPath === '/agents' ? 'bg-red-600/20 text-white border border-red-600/50' : 'text-gray-100 hover:bg-gray-800 hover:text-white'}"
+					class="block px-4 py-3 rounded-lg font-medium transition-all {currentPath === '/admin/agents' ? 'bg-red-600/20 text-white border border-red-600/50' : 'text-gray-100 hover:bg-gray-800 hover:text-white'}"
 				>
 					🤖 Agents
 				</a>
