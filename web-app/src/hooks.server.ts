@@ -138,6 +138,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		'/api/auth/register',
 		'/api/auth/logout',
 		'/api/auth/verify-email',
+		'/api/auth/emergency-reset',
 		'/api/ib/login',
 		'/api/ib/register',
 		'/api/ib/upload',
