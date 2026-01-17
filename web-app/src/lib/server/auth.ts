@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { JWT_SECRET } from '$env/static/private';
 import { PrismaClient, UserRole } from '@prisma/client';
 import type { RequestEvent, Cookies } from '@sveltejs/kit';
