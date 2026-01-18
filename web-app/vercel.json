@@ -1,5 +1,6 @@
 {
   "framework": "sveltekit",
   "buildCommand": "prisma generate && npm run build",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "regions": ["lhr1"]
 }

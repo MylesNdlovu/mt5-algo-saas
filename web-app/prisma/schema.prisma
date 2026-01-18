@@ -664,6 +664,10 @@ model MT5AccountAssignment {
   assignedAt DateTime @default(now())
   isActive   Boolean  @default(true)
 
+  // Credential Delivery (secure one-time delivery to agent)
+  credentialsDelivered   Boolean   @default(false)
+  credentialsDeliveredAt DateTime?
+
   // Real-time Status (updated by pool agent)
   status         String    @default("offline") // online, offline, error, starting
   eaStatus       String    @default("stopped") // running, stopped, paused, error
@@ -821,3 +825,4 @@ model IBCommissionRate {
   @@index([ibPartnerId])
   @@index([effectiveFrom, effectiveTo])
 }
+
