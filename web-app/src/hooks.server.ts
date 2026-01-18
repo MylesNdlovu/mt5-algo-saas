@@ -142,7 +142,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		'/api/ib/login',
 		'/api/ib/register',
 		'/api/ib/upload',
-		'/api/ib/verify-email'
+		'/api/ib/verify-email',
+		// Agent API routes (authenticated via API key, not session)
+		'/api/webhook/trades',
+		'/api/webhook/status',
+		'/api/commands'
 	];
 
 	if (publicRoutes.includes(path) || publicApiRoutes.some(route => path.startsWith(route))) {
