@@ -115,6 +115,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 	} catch (error) {
 		console.error('[Seed] Error:', error);
-		return json({ error: 'Failed to seed demo account' }, { status: 500 });
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		return json({ error: 'Failed to seed demo account', details: errorMessage }, { status: 500 });
 	}
 };
