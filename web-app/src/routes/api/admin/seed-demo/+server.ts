@@ -15,14 +15,13 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ error: 'Invalid secret' }, { status: 401 });
 		}
 
-		// Demo account credentials
+		// Demo account credentials (PrimeXBT Pro Demo)
 		const demoAccount = {
 			accountNumber: '1156599',
 			broker: 'PrimeXBT',
 			serverName: 'PXBTTrading-1',
 			login: '1156599',
-			password: '6VK73cWK&$',
-			accountType: 'Pro'
+			password: '6VK73cWK&$'
 		};
 
 		// Find or create a demo user
@@ -56,8 +55,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				userId: user.id,
 				status: 'ACTIVE',
 				balance: 10000,
-				equity: 10000,
-				accountType: demoAccount.accountType
+				equity: 10000
 			},
 			update: {
 				broker: demoAccount.broker,
@@ -85,6 +83,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				mt5Broker: demoAccount.broker,
 				mt5ServerName: demoAccount.serverName,
 				agentId: agent.id,
+				userId: user.id,
 				isActive: true,
 				credentialsDelivered: false
 			},
