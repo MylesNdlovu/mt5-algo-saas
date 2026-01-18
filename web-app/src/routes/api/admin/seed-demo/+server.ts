@@ -84,13 +84,11 @@ export const POST: RequestHandler = async ({ request }) => {
 				mt5ServerName: demoAccount.serverName,
 				agentId: agent.id,
 				userId: user.id,
-				isActive: true,
-				credentialsDelivered: false
+				isActive: true
 			},
 			update: {
 				agentId: agent.id,
-				isActive: true,
-				credentialsDelivered: false
+				isActive: true
 			}
 		});
 		console.log('[Seed] Created/updated assignment:', assignment.id);
