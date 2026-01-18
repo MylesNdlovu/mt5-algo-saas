@@ -37,7 +37,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					firstName: 'Demo',
 					lastName: 'Trader',
 					role: 'TRADER',
-					isEmailVerified: true
+					emailVerified: true
 				}
 			});
 			console.log('[Seed] Created demo user:', user.id);
