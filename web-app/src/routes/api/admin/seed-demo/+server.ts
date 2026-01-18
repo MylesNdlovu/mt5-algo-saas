@@ -75,23 +75,29 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ error: 'Agent not found' }, { status: 404 });
 		}
 
-		// Create or update assignment
-		const assignment = await prisma.mT5AccountAssignment.upsert({
-			where: { mt5AccountNumber: demoAccount.accountNumber },
-			create: {
-				mt5AccountNumber: demoAccount.accountNumber,
-				mt5Broker: demoAccount.broker,
-				mt5ServerName: demoAccount.serverName,
-				agentId: agent.id,
-				userId: user.id,
-				isActive: true
-			},
-			update: {
-				agentId: agent.id,
-				isActive: true
-			}
-		});
-		console.log('[Seed] Created/updated assignment:', assignment.id);
+		// Try to create assignment (may fail if schema not synced)
+		let assignmentId = null;
+		try {
+			const assignment = await prisma.mT5AccountAssignment.upsert({
+				where: { mt5AccountNumber: demoAccount.accountNumber },
+				create: {
+					mt5AccountNumber: demoAccount.accountNumber,
+					mt5Broker: demoAccount.broker,
+					mt5ServerName: demoAccount.serverName,
+					agentId: agent.id,
+					userId: user.id,
+					isActive: true
+				},
+				update: {
+					agentId: agent.id,
+					isActive: true
+				}
+			});
+			assignmentId = assignment.id;
+			console.log('[Seed] Created/updated assignment:', assignment.id);
+		} catch (assignErr) {
+			console.log('[Seed] Assignment creation failed (schema may need sync):', assignErr);
+		}
 
 		// Update agent's managed accounts
 		await prisma.agent.update({
@@ -108,7 +114,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				userId: user.id,
 				accountNumber: mt5Account.accountNumber,
 				agentId: agent.id,
-				assignmentId: assignment.id
+				assignmentId: assignmentId || 'skipped - run prisma db push'
 			}
 		});
 	} catch (error: unknown) {
