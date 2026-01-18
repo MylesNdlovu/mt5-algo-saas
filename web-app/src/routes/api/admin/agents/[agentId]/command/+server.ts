@@ -28,8 +28,11 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
             'update_settings',
             'sync_trades',
             'provision_account',
+            'provision_mt5',  // Download, install, and configure MT5 terminal
             'remove_account',
             'get_status',
+            'stop_terminal',
+            'restart_terminal',
             'update_indicator_settings'
         ];
 

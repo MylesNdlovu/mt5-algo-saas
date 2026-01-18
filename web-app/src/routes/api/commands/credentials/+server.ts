@@ -24,88 +24,110 @@ interface CredentialDelivery {
 
 // GET: Agent retrieves pending credentials
 export const GET: RequestHandler = async ({ url }) => {
-	const apiKey = url.searchParams.get('apiKey');
+	try {
+		const apiKey = url.searchParams.get('apiKey');
 
-	if (!apiKey) {
-		return json({ error: 'API key required' }, { status: 400 });
-	}
-
-	// Validate agent
-	const agent = await prisma.agent.findUnique({
-		where: { apiKey },
-		select: { id: true }
-	});
-
-	if (!agent) {
-		return json({ error: 'Invalid API key' }, { status: 401 });
-	}
-
-	// Get accounts assigned to this agent that have pending credentials
-	const assignments = await prisma.mT5AccountAssignment.findMany({
-		where: {
-			agentId: agent.id,
-			credentialsDelivered: false,
-			isActive: true
-		},
-		select: {
-			mt5AccountNumber: true,
-			mt5Broker: true,
-			mt5ServerName: true
+		if (!apiKey) {
+			return json({ error: 'API key required' }, { status: 400 });
 		}
-	});
 
-	if (assignments.length === 0) {
-		return json({ credentials: [], message: 'No pending credentials' });
-	}
-
-	// Get full account details with credentials
-	const credentials: CredentialDelivery[] = [];
-
-	for (const assignment of assignments) {
-		const account = await prisma.mT5Account.findUnique({
-			where: { accountNumber: assignment.mt5AccountNumber },
-			select: {
-				accountNumber: true,
-				broker: true,
-				serverName: true,
-				login: true,
-				password: true
-			}
+		// Validate agent
+		const agent = await prisma.agent.findUnique({
+			where: { apiKey },
+			select: { id: true }
 		});
 
-		if (account && account.password) {
-			// TODO: Decrypt password here before sending
-			// For now, assuming it's stored securely
-			credentials.push({
-				accountNumber: account.accountNumber,
-				broker: account.broker,
-				serverName: account.serverName,
-				login: account.login,
-				password: account.password // Should be decrypted in production
+		if (!agent) {
+			return json({ error: 'Invalid API key' }, { status: 401 });
+		}
+
+		// Get accounts assigned to this agent that have pending credentials
+		let assignments: { mt5AccountNumber: string; mt5Broker: string | null; mt5ServerName: string | null }[] = [];
+
+		try {
+			assignments = await prisma.mT5AccountAssignment.findMany({
+				where: {
+					agentId: agent.id,
+					credentialsDelivered: false,
+					isActive: true
+				},
+				select: {
+					mt5AccountNumber: true,
+					mt5Broker: true,
+					mt5ServerName: true
+				}
 			});
+		} catch (assignmentError) {
+			// If MT5AccountAssignment table/columns don't exist, return empty credentials
+			console.warn('[Credentials] Assignment query failed (may need migration):', assignmentError);
+			return json({ credentials: [], message: 'No pending credentials (assignment query failed)' });
 		}
-	}
 
-	// Mark credentials as delivered
-	if (credentials.length > 0) {
-		await prisma.mT5AccountAssignment.updateMany({
-			where: {
-				agentId: agent.id,
-				mt5AccountNumber: { in: credentials.map(c => c.accountNumber) }
-			},
-			data: {
-				credentialsDelivered: true,
-				credentialsDeliveredAt: new Date()
+		if (assignments.length === 0) {
+			return json({ credentials: [], message: 'No pending credentials' });
+		}
+
+		// Get full account details with credentials
+		const credentials: CredentialDelivery[] = [];
+
+		for (const assignment of assignments) {
+			try {
+				const account = await prisma.mT5Account.findUnique({
+					where: { accountNumber: assignment.mt5AccountNumber },
+					select: {
+						accountNumber: true,
+						broker: true,
+						serverName: true,
+						login: true,
+						password: true
+					}
+				});
+
+				if (account && account.password) {
+					// TODO: Decrypt password here before sending
+					// For now, assuming it's stored securely
+					credentials.push({
+						accountNumber: account.accountNumber,
+						broker: account.broker,
+						serverName: account.serverName,
+						login: account.login,
+						password: account.password // Should be decrypted in production
+					});
+				}
+			} catch (accountError) {
+				console.warn(`[Credentials] Failed to get account ${assignment.mt5AccountNumber}:`, accountError);
 			}
+		}
+
+		// Mark credentials as delivered
+		if (credentials.length > 0) {
+			try {
+				await prisma.mT5AccountAssignment.updateMany({
+					where: {
+						agentId: agent.id,
+						mt5AccountNumber: { in: credentials.map(c => c.accountNumber) }
+					},
+					data: {
+						credentialsDelivered: true,
+						credentialsDeliveredAt: new Date()
+					}
+				});
+
+				console.log(`[Credentials] Delivered ${credentials.length} credentials to agent ${agent.id}`);
+			} catch (updateError) {
+				console.warn('[Credentials] Failed to mark credentials as delivered:', updateError);
+			}
+		}
+
+		return json({
+			credentials,
+			deliveredAt: new Date().toISOString()
 		});
-
-		console.log(`[Credentials] Delivered ${credentials.length} credentials to agent ${agent.id}`);
+	} catch (error) {
+		console.error('[Credentials] GET error:', error);
+		// Return empty credentials instead of 500 to not break agent
+		return json({ credentials: [], message: 'Error fetching credentials', error: String(error) });
 	}
-
-	return json({
-		credentials,
-		deliveredAt: new Date().toISOString()
-	});
 };
 
 // POST: Web app queues credentials for delivery when user registers MT5 account
