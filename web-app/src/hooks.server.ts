@@ -146,7 +146,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// Agent API routes (authenticated via API key, not session)
 		'/api/webhook/trades',
 		'/api/webhook/status',
-		'/api/commands'
+		'/api/commands',
+		// Temporary admin endpoint - DELETE AFTER USE
+		'/api/admin/seed-demo'
 	];
 
 	if (publicRoutes.includes(path) || publicApiRoutes.some(route => path.startsWith(route))) {
