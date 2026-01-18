@@ -5,6 +5,8 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.InteropServices;
+using System.ServiceProcess;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -13,7 +15,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace ScalperiumHttpAgent;
 
-class Program
+partial class Program
 {
     private static HttpClient _httpClient = null!;
     private static string _apiKey = null!;
@@ -33,13 +35,133 @@ class Program
     private static string _mt5BasePath = @"C:\Scalperium\MT5";
     private static Dictionary<string, MT5Instance> _mt5Instances = new();
 
+    // Service constants
+    private const string ServiceName = "ScalperiumAgent";
+    private const string ServiceDisplayName = "Scalperium MT5 Agent";
+    private const string ServiceDescription = "Auto-provisions and manages MT5 terminals for Scalperium trading platform";
+
     static async Task Main(string[] args)
     {
-        Console.WriteLine("╔══════════════════════════════════════════════════════╗");
-        Console.WriteLine("║     SCALPERIUM HTTP SYNC AGENT v3.1.0                ║");
-        Console.WriteLine("║     Production-Grade Trade Sync + Commands           ║");
-        Console.WriteLine("╚══════════════════════════════════════════════════════╝");
-        Console.WriteLine();
+        // Handle service installation commands
+        if (args.Length > 0)
+        {
+            switch (args[0].ToLower())
+            {
+                case "--install":
+                case "-i":
+                    InstallService();
+                    return;
+
+                case "--uninstall":
+                case "-u":
+                    UninstallService();
+                    return;
+
+                case "--service":
+                case "-s":
+                    // Running as Windows Service - no console output
+                    await RunAgentAsync(isService: true);
+                    return;
+
+                case "--help":
+                case "-h":
+                    ShowHelp();
+                    return;
+            }
+        }
+
+        // Normal run - check if we should auto-install as service
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && !IsRunningAsService())
+        {
+            // Check if service is already installed
+            if (!IsServiceInstalled())
+            {
+                Console.WriteLine("╔══════════════════════════════════════════════════════╗");
+                Console.WriteLine("║     SCALPERIUM AGENT - FIRST RUN SETUP               ║");
+                Console.WriteLine("╚══════════════════════════════════════════════════════╝");
+                Console.WriteLine();
+
+                // Auto-install as Windows Service
+                if (IsRunningAsAdmin())
+                {
+                    Console.WriteLine("[Setup] Installing as Windows Service...");
+                    InstallService();
+                    Console.WriteLine();
+                    Console.WriteLine("[Setup] Starting service...");
+                    StartService();
+                    Console.WriteLine();
+                    Console.WriteLine("╔══════════════════════════════════════════════════════╗");
+                    Console.WriteLine("║  SUCCESS! Agent installed and running as service     ║");
+                    Console.WriteLine("║  The agent will now start automatically on boot.     ║");
+                    Console.WriteLine("║  You can close this window.                          ║");
+                    Console.WriteLine("╚══════════════════════════════════════════════════════╝");
+                    Console.WriteLine();
+                    Console.WriteLine("Press any key to exit...");
+                    Console.ReadKey();
+                    return;
+                }
+                else
+                {
+                    Console.WriteLine("[Setup] Administrator rights required to install service.");
+                    Console.WriteLine("[Setup] Relaunching as Administrator...");
+                    Console.WriteLine();
+
+                    // Relaunch as admin
+                    RelaunchAsAdmin("--install");
+                    return;
+                }
+            }
+            else if (!IsServiceRunning())
+            {
+                // Service installed but not running - start it
+                Console.WriteLine("[Agent] Service installed but not running. Starting...");
+                if (IsRunningAsAdmin())
+                {
+                    StartService();
+                    Console.WriteLine("[Agent] Service started. You can close this window.");
+                }
+                else
+                {
+                    RelaunchAsAdmin("--start-service");
+                }
+                Console.WriteLine("Press any key to exit...");
+                Console.ReadKey();
+                return;
+            }
+            else
+            {
+                // Service already running
+                Console.WriteLine("╔══════════════════════════════════════════════════════╗");
+                Console.WriteLine("║     SCALPERIUM AGENT - ALREADY RUNNING               ║");
+                Console.WriteLine("╚══════════════════════════════════════════════════════╝");
+                Console.WriteLine();
+                Console.WriteLine("[Agent] Service is already running in the background.");
+                Console.WriteLine("[Agent] No action needed. You can close this window.");
+                Console.WriteLine();
+                Console.WriteLine("Commands:");
+                Console.WriteLine("  --uninstall  Remove the Windows Service");
+                Console.WriteLine("  --help       Show all commands");
+                Console.WriteLine();
+                Console.WriteLine("Press any key to exit...");
+                Console.ReadKey();
+                return;
+            }
+        }
+
+        // Run in console mode (for debugging or non-Windows)
+        await RunAgentAsync(isService: false);
+    }
+
+    static async Task RunAgentAsync(bool isService)
+    {
+        if (!isService)
+        {
+            Console.WriteLine("╔══════════════════════════════════════════════════════╗");
+            Console.WriteLine("║     SCALPERIUM HTTP SYNC AGENT v4.0.0                ║");
+            Console.WriteLine("║     Auto-Installing Windows Service Agent            ║");
+            Console.WriteLine("╚══════════════════════════════════════════════════════╝");
+            Console.WriteLine();
+        }
 
         try
         {
@@ -827,4 +949,277 @@ public class CredentialInfo
     public string ServerName { get; set; } = "";
     public string Login { get; set; } = "";
     public string Password { get; set; } = "";
+}
+
+// Service management methods in Program class
+partial class Program
+{
+    static void ShowHelp()
+    {
+        Console.WriteLine("╔══════════════════════════════════════════════════════╗");
+        Console.WriteLine("║     SCALPERIUM AGENT - HELP                          ║");
+        Console.WriteLine("╚══════════════════════════════════════════════════════╝");
+        Console.WriteLine();
+        Console.WriteLine("Usage: ScalperiumHttpAgent.exe [options]");
+        Console.WriteLine();
+        Console.WriteLine("Options:");
+        Console.WriteLine("  (no args)     Auto-install and run as Windows Service");
+        Console.WriteLine("  --install     Install as Windows Service");
+        Console.WriteLine("  --uninstall   Remove Windows Service");
+        Console.WriteLine("  --service     Run in service mode (used by Windows)");
+        Console.WriteLine("  --help        Show this help");
+        Console.WriteLine();
+        Console.WriteLine("First run: Just double-click the exe - it will:");
+        Console.WriteLine("  1. Request Administrator permissions");
+        Console.WriteLine("  2. Install itself as a Windows Service");
+        Console.WriteLine("  3. Start running in the background");
+        Console.WriteLine("  4. Auto-start on Windows boot");
+        Console.WriteLine();
+    }
+
+    static bool IsRunningAsAdmin()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return true;
+
+        try
+        {
+            using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            var principal = new System.Security.Principal.WindowsPrincipal(identity);
+            return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static bool IsRunningAsService()
+    {
+        // Check if parent process is services.exe
+        try
+        {
+            var parent = ParentProcessUtilities.GetParentProcess();
+            return parent?.ProcessName.Equals("services", StringComparison.OrdinalIgnoreCase) ?? false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static bool IsServiceInstalled()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return false;
+
+        try
+        {
+            using var sc = new ServiceController(ServiceName);
+            var status = sc.Status; // Will throw if not installed
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static bool IsServiceRunning()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return false;
+
+        try
+        {
+            using var sc = new ServiceController(ServiceName);
+            return sc.Status == ServiceControllerStatus.Running;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static void InstallService()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            Console.WriteLine("[Install] Windows Service only supported on Windows");
+            return;
+        }
+
+        var exePath = Process.GetCurrentProcess().MainModule?.FileName;
+        if (string.IsNullOrEmpty(exePath))
+        {
+            Console.WriteLine("[Install] ERROR: Could not determine executable path");
+            return;
+        }
+
+        // Create the service using sc.exe
+        var createArgs = $"create {ServiceName} binPath= \"\\\"{exePath}\\\" --service\" start= auto DisplayName= \"{ServiceDisplayName}\"";
+
+        var createProcess = Process.Start(new ProcessStartInfo
+        {
+            FileName = "sc.exe",
+            Arguments = createArgs,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        });
+
+        createProcess?.WaitForExit();
+        var output = createProcess?.StandardOutput.ReadToEnd();
+        var error = createProcess?.StandardError.ReadToEnd();
+
+        if (createProcess?.ExitCode == 0)
+        {
+            Console.WriteLine($"[Install] Service '{ServiceName}' installed successfully");
+
+            // Set description
+            var descProcess = Process.Start(new ProcessStartInfo
+            {
+                FileName = "sc.exe",
+                Arguments = $"description {ServiceName} \"{ServiceDescription}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+            descProcess?.WaitForExit();
+
+            // Set failure recovery (restart on failure)
+            var failureProcess = Process.Start(new ProcessStartInfo
+            {
+                FileName = "sc.exe",
+                Arguments = $"failure {ServiceName} reset= 86400 actions= restart/60000/restart/60000/restart/60000",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+            failureProcess?.WaitForExit();
+
+            Console.WriteLine("[Install] Service configured with auto-restart on failure");
+        }
+        else
+        {
+            Console.WriteLine($"[Install] ERROR: {error ?? output}");
+        }
+    }
+
+    static void UninstallService()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            Console.WriteLine("[Uninstall] Windows Service only supported on Windows");
+            return;
+        }
+
+        // Stop the service first
+        try
+        {
+            using var sc = new ServiceController(ServiceName);
+            if (sc.Status == ServiceControllerStatus.Running)
+            {
+                Console.WriteLine("[Uninstall] Stopping service...");
+                sc.Stop();
+                sc.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(30));
+            }
+        }
+        catch { }
+
+        // Delete the service
+        var deleteProcess = Process.Start(new ProcessStartInfo
+        {
+            FileName = "sc.exe",
+            Arguments = $"delete {ServiceName}",
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        });
+
+        deleteProcess?.WaitForExit();
+
+        if (deleteProcess?.ExitCode == 0)
+        {
+            Console.WriteLine($"[Uninstall] Service '{ServiceName}' removed successfully");
+        }
+        else
+        {
+            var error = deleteProcess?.StandardError.ReadToEnd();
+            Console.WriteLine($"[Uninstall] ERROR: {error}");
+        }
+    }
+
+    static void StartService()
+    {
+        try
+        {
+            using var sc = new ServiceController(ServiceName);
+            if (sc.Status != ServiceControllerStatus.Running)
+            {
+                sc.Start();
+                sc.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(30));
+                Console.WriteLine("[Service] Started successfully");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Service] ERROR starting: {ex.Message}");
+        }
+    }
+
+    static void RelaunchAsAdmin(string args)
+    {
+        var exePath = Process.GetCurrentProcess().MainModule?.FileName;
+        if (string.IsNullOrEmpty(exePath)) return;
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = exePath,
+            Arguments = args,
+            UseShellExecute = true,
+            Verb = "runas" // Request admin elevation
+        };
+
+        try
+        {
+            Process.Start(startInfo);
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            Console.WriteLine("[Setup] Administrator access was denied. Cannot install service.");
+            Console.WriteLine("Please right-click the exe and select 'Run as Administrator'.");
+        }
+    }
+}
+
+// Helper class to get parent process
+static class ParentProcessUtilities
+{
+    public static Process? GetParentProcess()
+    {
+        try
+        {
+            var currentProcess = Process.GetCurrentProcess();
+            var parentId = 0;
+
+            // Use WMI to get parent process ID
+            using var query = new System.Management.ManagementObjectSearcher(
+                $"SELECT ParentProcessId FROM Win32_Process WHERE ProcessId = {currentProcess.Id}");
+
+            foreach (var item in query.Get())
+            {
+                parentId = Convert.ToInt32(item["ParentProcessId"]);
+                break;
+            }
+
+            if (parentId > 0)
+            {
+                return Process.GetProcessById(parentId);
+            }
+        }
+        catch { }
+
+        return null;
+    }
 }
