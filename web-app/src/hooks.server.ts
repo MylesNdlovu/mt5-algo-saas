@@ -147,6 +147,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		'/api/webhook/trades',
 		'/api/webhook/status',
 		'/api/commands',
+		'/api/commands/credentials',
 		// Temporary admin endpoint - DELETE AFTER USE
 		'/api/admin/seed-demo'
 	];

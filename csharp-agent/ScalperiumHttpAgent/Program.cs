@@ -28,6 +28,11 @@ class Program
     private static double _avgLatencyMs = 0;
     private static double _avgCommandLatencyMs = 0;
 
+    // MT5 Provisioning
+    private static MT5Provisioner? _provisioner;
+    private static string _mt5BasePath = @"C:\Scalperium\MT5";
+    private static Dictionary<string, MT5Instance> _mt5Instances = new();
+
     static async Task Main(string[] args)
     {
         Console.WriteLine("╔══════════════════════════════════════════════════════╗");
@@ -45,19 +50,37 @@ class Program
                 Timeout = TimeSpan.FromSeconds(30)
             };
 
+            // Initialize MT5 Provisioner
+            _provisioner = new MT5Provisioner(_mt5BasePath);
+
             Console.WriteLine($"  API Key:        {_apiKey[..15]}...");
             Console.WriteLine($"  Web App:        {_webAppUrl}");
             Console.WriteLine($"  Account:        {_accountNumber}");
+            Console.WriteLine($"  MT5 Base:       {_mt5BasePath}");
             Console.WriteLine($"  Trade Sync:     every {_syncIntervalSeconds}s");
             Console.WriteLine($"  Command Poll:   every {_commandPollIntervalSeconds}s");
             Console.WriteLine();
 
             // Handle Ctrl+C
-            Console.CancelKeyPress += (s, e) =>
+            Console.CancelKeyPress += async (s, e) =>
             {
                 e.Cancel = true;
                 _isRunning = false;
                 Console.WriteLine("\n[Agent] Shutting down...");
+
+                // Stop all MT5 instances
+                foreach (var instance in _mt5Instances.Values)
+                {
+                    try
+                    {
+                        Console.WriteLine($"[Agent] Stopping MT5 instance for account {instance.AccountNumber}...");
+                        await _provisioner!.StopInstanceAsync(instance);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Agent] Error stopping instance: {ex.Message}");
+                    }
+                }
             };
 
             // Initial connection test
@@ -72,10 +95,14 @@ class Program
                 Console.WriteLine("[Agent] Connection successful!");
             }
 
+            // Auto-provision MT5 if credentials are pending
+            Console.WriteLine("[Agent] Checking for pending MT5 credentials...");
+            await AutoProvisionMT5OnStartupAsync();
+
             Console.WriteLine();
             Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             Console.WriteLine(" Agent running. Press Ctrl+C to stop.");
-            Console.WriteLine(" Commands: START_EA, STOP_EA, PAUSE_EA will execute in <3s");
+            Console.WriteLine(" Commands: PROVISION_MT5, START_EA, STOP_EA will execute in <3s");
             Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             Console.WriteLine();
 
@@ -181,19 +208,16 @@ class Program
 
     static async Task<(bool success, object? result, string? error)> ExecuteCommandAsync(CommandInfo cmd)
     {
-        // TODO: Implement actual MT5 automation here
-        // For now, simulate command execution
-
         switch (cmd.command.ToLower())
         {
+            case "provision_mt5":
+                return await HandleProvisionMT5Async(cmd);
+
             case "start_ea":
-                // Would call MT5 automation to start EA
-                await Task.Delay(100); // Simulate
-                return (true, new { message = "EA started successfully" }, null);
+                return await HandleStartEAAsync(cmd);
 
             case "stop_ea":
-                await Task.Delay(100);
-                return (true, new { message = "EA stopped successfully" }, null);
+                return await HandleStopEAAsync(cmd);
 
             case "pause_ea":
                 await Task.Delay(100);
@@ -205,12 +229,228 @@ class Program
                 return (true, new { message = "Trades synced" }, null);
 
             case "restart_terminal":
-                // Would restart MT5 terminal
-                await Task.Delay(500);
-                return (true, new { message = "Terminal restart initiated" }, null);
+                return await HandleRestartTerminalAsync(cmd);
+
+            case "stop_terminal":
+                return await HandleStopTerminalAsync(cmd);
 
             default:
                 return (false, null, $"Unknown command: {cmd.command}");
+        }
+    }
+
+    static async Task<(bool success, object? result, string? error)> HandleProvisionMT5Async(CommandInfo cmd)
+    {
+        try
+        {
+            if (_provisioner == null)
+            {
+                return (false, null, "Provisioner not initialized");
+            }
+
+            // Extract credentials from payload
+            var payloadJson = JsonSerializer.Serialize(cmd.payload);
+            var credentials = JsonSerializer.Deserialize<MT5Credentials>(payloadJson, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (credentials == null)
+            {
+                return (false, null, "Invalid credentials payload");
+            }
+
+            Console.WriteLine($"[Provision] Starting MT5 provisioning for account {credentials.AccountNumber}");
+            Console.WriteLine($"[Provision] Broker: {credentials.Broker}, Server: {credentials.ServerName}");
+
+            // Check if already provisioned
+            if (_mt5Instances.ContainsKey(credentials.AccountNumber))
+            {
+                var existing = _mt5Instances[credentials.AccountNumber];
+                if (_provisioner.IsInstanceRunning(existing))
+                {
+                    return (true, new { message = "MT5 already running", instancePath = existing.InstallPath }, null);
+                }
+            }
+
+            // Provision new MT5 instance
+            var instance = await _provisioner.ProvisionAsync(credentials);
+            _mt5Instances[credentials.AccountNumber] = instance;
+
+            return (true, new
+            {
+                message = "MT5 provisioned and started successfully",
+                instancePath = instance.InstallPath,
+                processId = instance.ProcessId,
+                status = instance.Status
+            }, null);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Provision] Error: {ex.Message}");
+            return (false, null, ex.Message);
+        }
+    }
+
+    static async Task<(bool success, object? result, string? error)> HandleStartEAAsync(CommandInfo cmd)
+    {
+        try
+        {
+            var accountId = cmd.accountId ?? _accountNumber;
+
+            if (_mt5Instances.TryGetValue(accountId, out var instance))
+            {
+                if (!_provisioner!.IsInstanceRunning(instance))
+                {
+                    // Restart terminal
+                    await _provisioner.ProvisionAsync(new MT5Credentials
+                    {
+                        AccountNumber = instance.AccountNumber,
+                        Broker = instance.Broker,
+                        ServerName = instance.ServerName
+                    });
+                }
+                return (true, new { message = "EA started successfully", processId = instance.ProcessId }, null);
+            }
+
+            return (false, null, $"MT5 instance not found for account {accountId}");
+        }
+        catch (Exception ex)
+        {
+            return (false, null, ex.Message);
+        }
+    }
+
+    static async Task<(bool success, object? result, string? error)> HandleStopEAAsync(CommandInfo cmd)
+    {
+        try
+        {
+            var accountId = cmd.accountId ?? _accountNumber;
+
+            if (_mt5Instances.TryGetValue(accountId, out var instance))
+            {
+                await _provisioner!.StopInstanceAsync(instance);
+                return (true, new { message = "EA stopped successfully" }, null);
+            }
+
+            return (false, null, $"MT5 instance not found for account {accountId}");
+        }
+        catch (Exception ex)
+        {
+            return (false, null, ex.Message);
+        }
+    }
+
+    static async Task<(bool success, object? result, string? error)> HandleRestartTerminalAsync(CommandInfo cmd)
+    {
+        try
+        {
+            var accountId = cmd.accountId ?? _accountNumber;
+
+            if (_mt5Instances.TryGetValue(accountId, out var instance))
+            {
+                // Stop and restart
+                await _provisioner!.StopInstanceAsync(instance);
+                await Task.Delay(2000); // Wait for clean shutdown
+
+                // Re-provision with same credentials
+                var newInstance = await _provisioner.ProvisionAsync(new MT5Credentials
+                {
+                    AccountNumber = instance.AccountNumber,
+                    Broker = instance.Broker,
+                    ServerName = instance.ServerName
+                });
+
+                _mt5Instances[accountId] = newInstance;
+                return (true, new { message = "Terminal restarted successfully", processId = newInstance.ProcessId }, null);
+            }
+
+            return (false, null, $"MT5 instance not found for account {accountId}");
+        }
+        catch (Exception ex)
+        {
+            return (false, null, ex.Message);
+        }
+    }
+
+    static async Task<(bool success, object? result, string? error)> HandleStopTerminalAsync(CommandInfo cmd)
+    {
+        try
+        {
+            var accountId = cmd.accountId ?? _accountNumber;
+
+            if (_mt5Instances.TryGetValue(accountId, out var instance))
+            {
+                await _provisioner!.StopInstanceAsync(instance);
+                return (true, new { message = "Terminal stopped successfully" }, null);
+            }
+
+            return (false, null, $"MT5 instance not found for account {accountId}");
+        }
+        catch (Exception ex)
+        {
+            return (false, null, ex.Message);
+        }
+    }
+
+    static async Task AutoProvisionMT5OnStartupAsync()
+    {
+        try
+        {
+            // Fetch pending credentials from web app
+            var endpoint = $"{_webAppUrl}/api/commands/credentials?apiKey={_apiKey}";
+            var response = await _httpClient.GetAsync(endpoint);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"[Provision] Could not fetch credentials: HTTP {(int)response.StatusCode}");
+                return;
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<CredentialsResponse>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (result?.Credentials == null || result.Credentials.Count == 0)
+            {
+                Console.WriteLine("[Provision] No pending credentials to provision");
+                return;
+            }
+
+            Console.WriteLine($"[Provision] Found {result.Credentials.Count} account(s) to provision");
+
+            foreach (var cred in result.Credentials)
+            {
+                try
+                {
+                    Console.WriteLine($"[Provision] Provisioning account {cred.AccountNumber} ({cred.Broker})...");
+
+                    var credentials = new MT5Credentials
+                    {
+                        AccountNumber = cred.AccountNumber,
+                        Broker = cred.Broker,
+                        ServerName = cred.ServerName,
+                        Login = cred.Login,
+                        Password = cred.Password
+                    };
+
+                    var instance = await _provisioner!.ProvisionAsync(credentials);
+                    _mt5Instances[credentials.AccountNumber] = instance;
+
+                    Console.WriteLine($"[Provision] ✓ Account {cred.AccountNumber} provisioned successfully (PID: {instance.ProcessId})");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Provision] ✗ Failed to provision {cred.AccountNumber}: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Provision] Auto-provision error: {ex.Message}");
         }
     }
 
@@ -571,4 +811,20 @@ public class CommandInfo
     public object? payload { get; set; }
     public int priority { get; set; }
     public string createdAt { get; set; } = "";
+}
+
+public class CredentialsResponse
+{
+    public List<CredentialInfo> Credentials { get; set; } = new();
+    public string? DeliveredAt { get; set; }
+    public string? Message { get; set; }
+}
+
+public class CredentialInfo
+{
+    public string AccountNumber { get; set; } = "";
+    public string Broker { get; set; } = "";
+    public string ServerName { get; set; } = "";
+    public string Login { get; set; } = "";
+    public string Password { get; set; } = "";
 }
