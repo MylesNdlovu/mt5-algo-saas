@@ -107,15 +107,37 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 		});
 
+		// Queue provision_mt5 command for the agent to download and install MT5
+		const provisionCommand = await prisma.agentCommand.create({
+			data: {
+				agentId: agent.id,
+				command: 'provision_mt5',
+				mt5AccountNumber: demoAccount.accountNumber,
+				payload: {
+					broker: demoAccount.broker,
+					serverName: demoAccount.serverName,
+					login: demoAccount.login,
+					password: demoAccount.password,
+					accountNumber: demoAccount.accountNumber
+				},
+				priority: 10,
+				status: 'pending',
+				expiresAt: new Date(Date.now() + 30 * 60 * 1000) // 30 min expiry for download
+			}
+		});
+		console.log('[Seed] Queued provision_mt5 command:', provisionCommand.id);
+
 		return json({
 			success: true,
-			message: 'Demo account seeded successfully',
+			message: 'Demo account seeded and provision command queued!',
 			data: {
 				userId: user.id,
 				accountNumber: mt5Account.accountNumber,
 				agentId: agent.id,
-				assignmentId: assignmentId || 'skipped - run prisma db push'
-			}
+				assignmentId: assignmentId || 'skipped - run prisma db push',
+				provisionCommandId: provisionCommand.id
+			},
+			nextStep: 'Agent will download and install PrimeXBT MT5 within 2 seconds'
 		});
 	} catch (error: unknown) {
 		console.error('[Seed] Error:', error);
