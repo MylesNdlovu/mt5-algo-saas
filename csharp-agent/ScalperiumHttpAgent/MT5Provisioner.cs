@@ -50,9 +50,10 @@ public class MT5Provisioner
             Console.WriteLine($"[Provisioner] Downloading {credentials.Broker} MT5...");
             var installerPath = await DownloadInstallerAsync(credentials.Broker);
 
-            // Step 2: Install in portable mode
-            Console.WriteLine($"[Provisioner] Installing to {instancePath}...");
-            await InstallPortableAsync(installerPath, instancePath);
+            // Step 2: Install - installer may put it in different location
+            Console.WriteLine($"[Provisioner] Installing MT5...");
+            var actualInstallPath = await InstallAndFindMT5Async(installerPath, instancePath, credentials.Broker);
+            instance.InstallPath = actualInstallPath;
 
             // Step 3: Configure login
             Console.WriteLine($"[Provisioner] Configuring login...");
@@ -132,13 +133,22 @@ public class MT5Provisioner
         return installerPath;
     }
 
-    private async Task InstallPortableAsync(string installerPath, string targetPath)
+    private async Task<string> InstallAndFindMT5Async(string installerPath, string targetPath, string broker)
     {
         // Create target directory
         Directory.CreateDirectory(targetPath);
 
-        // MT5 installer supports /portable and /silent switches
-        var args = $"/auto /portable /dir:\"{targetPath}\"";
+        // Check if MT5 is already installed (skip installation)
+        var existingPath = await FindExistingMT5Async(broker);
+        if (existingPath != null)
+        {
+            Console.WriteLine($"[Provisioner] MT5 already installed at: {existingPath}");
+            return existingPath;
+        }
+
+        // MT5 installer supports /auto switch - runs with minimal interaction
+        // Note: Some broker installers may still show GUI even with /auto
+        var args = $"/auto";
 
         Console.WriteLine($"[Provisioner] Running: {installerPath} {args}");
 
@@ -148,16 +158,15 @@ public class MT5Provisioner
             {
                 FileName = installerPath,
                 Arguments = args,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
+                UseShellExecute = true,  // Allow GUI to work
+                WorkingDirectory = Path.GetDirectoryName(installerPath)
             }
         };
 
         process.Start();
 
         // Wait for installation (with timeout)
+        Console.WriteLine($"[Provisioner] Waiting for installation to complete...");
         var completed = await Task.Run(() => process.WaitForExit(300000)); // 5 min timeout
 
         if (!completed)
@@ -167,18 +176,92 @@ public class MT5Provisioner
         }
 
         // Wait for files to be written
-        await Task.Delay(2000);
+        await Task.Delay(3000);
 
-        // Verify installation
-        var terminal64 = Path.Combine(targetPath, "terminal64.exe");
-        var terminal32 = Path.Combine(targetPath, "terminal.exe");
+        // Find where MT5 was installed
+        var foundPath = await FindExistingMT5Async(broker);
 
-        if (!File.Exists(terminal64) && !File.Exists(terminal32))
+        if (foundPath == null)
         {
-            throw new Exception($"MT5 installation failed - terminal not found in {targetPath}");
+            throw new Exception($"MT5 installation failed - terminal not found after installation");
         }
 
-        Console.WriteLine($"[Provisioner] MT5 installed successfully to {targetPath}");
+        Console.WriteLine($"[Provisioner] MT5 installed successfully at {foundPath}");
+        return foundPath;
+    }
+
+    private async Task<string?> FindExistingMT5Async(string broker)
+    {
+        // Broker-specific paths
+        var brokerFolderNames = broker.ToLower() switch
+        {
+            "primexbt" => new[] { "PrimeXBT MT5", "PrimeXBT MetaTrader 5", "primexbt5" },
+            "exness" => new[] { "Exness MT5", "Exness MetaTrader 5", "exness5" },
+            _ => new[] { "MetaTrader 5", "MT5" }
+        };
+
+        var possiblePaths = new List<string>();
+
+        // Add broker-specific paths
+        foreach (var folderName in brokerFolderNames)
+        {
+            possiblePaths.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), folderName));
+            possiblePaths.Add(Path.Combine(@"C:\Program Files", folderName));
+        }
+
+        // Add generic MT5 paths
+        possiblePaths.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "MetaTrader 5"));
+        possiblePaths.Add(@"C:\Program Files\MetaTrader 5");
+
+        foreach (var path in possiblePaths.Distinct())
+        {
+            if (File.Exists(Path.Combine(path, "terminal64.exe")) ||
+                File.Exists(Path.Combine(path, "terminal.exe")))
+            {
+                return path;
+            }
+        }
+
+        // Search Program Files if not found in expected locations
+        return await SearchForMT5InstallationAsync();
+    }
+
+    private async Task<string?> SearchForMT5InstallationAsync()
+    {
+        // Search Program Files directories for MT5
+        var searchDirs = new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            @"C:\Program Files",
+            @"C:\Program Files (x86)"
+        };
+
+        foreach (var searchDir in searchDirs.Distinct())
+        {
+            if (!Directory.Exists(searchDir)) continue;
+
+            try
+            {
+                var dirs = Directory.GetDirectories(searchDir, "*MT5*", SearchOption.TopDirectoryOnly)
+                    .Concat(Directory.GetDirectories(searchDir, "*MetaTrader*", SearchOption.TopDirectoryOnly));
+
+                foreach (var dir in dirs)
+                {
+                    if (File.Exists(Path.Combine(dir, "terminal64.exe")) ||
+                        File.Exists(Path.Combine(dir, "terminal.exe")))
+                    {
+                        return dir;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Provisioner] Error searching {searchDir}: {ex.Message}");
+            }
+        }
+
+        return null;
     }
 
     private async Task ConfigureLoginAsync(MT5Instance instance, MT5Credentials credentials)
