@@ -113,9 +113,16 @@ export const POST: RequestHandler = async ({ request }) => {
 				assignmentId: assignment.id
 			}
 		});
-	} catch (error) {
+	} catch (error: unknown) {
 		console.error('[Seed] Error:', error);
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		return json({ error: 'Failed to seed demo account', details: errorMessage }, { status: 500 });
+		let details = 'Unknown error';
+		if (error instanceof Error) {
+			details = error.message;
+			// Check for Prisma-specific error properties
+			if ('code' in error) {
+				details += ` (code: ${(error as { code: string }).code})`;
+			}
+		}
+		return json({ error: 'Failed to seed demo account', details, version: '2' }, { status: 500 });
 	}
 };
