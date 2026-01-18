@@ -33,7 +33,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			user = await prisma.user.create({
 				data: {
 					email: 'demo@scalperium.com',
-					password: 'demo-hashed-password', // Not used for login
+					passwordHash: 'demo-hashed-password-not-for-login',
 					firstName: 'Demo',
 					lastName: 'Trader',
 					role: 'TRADER',
